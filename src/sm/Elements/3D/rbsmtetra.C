@@ -45,6 +45,8 @@
 #include "fei3dtetlin.h"
 #include "classfactory.h"
 
+#include "rigidarmnode.h"
+
 #ifdef __OOFEG
  #include "oofeggraphiccontext.h"
  #include "oofegutils.h"
@@ -70,18 +72,253 @@ RBSMTetra :: RBSMTetra(int n, Domain *aDomain) :
         ZZErrorEstimatorInterface(this),
         HuertaErrorEstimatorInterface()
     */
-
 {
     numberOfDofMans  = 4;
     numberOfGaussPoints = 1;
 }
 
 
-Interface *
-// S: todo: update or confirm
-RBSMTetra :: giveInterface(InterfaceType interface)
+void RBSMTetra::initializeFrom( InputRecord &ir )
 {
-/*
+    numberOfGaussPoints = 1;
+    numberOfCornerNodes = 4;
+
+    // A safer option to initialize the RBSM Tetra is to
+    // make a dummy input record after cloning corner nodes.
+    // currently we first initialize the element then clone
+    // the corner nodes.
+    Structural3DElement::initializeFrom( ir );
+
+    RBSMTetra::setCornerNodesFromIr( ir );
+    RBSMTetra::makeDofmanagers( ir );
+
+}
+
+
+void RBSMTetra::setCornerNodesFromIr( InputRecord &ir )
+// Obtains the coordinates of rigid body cell
+{
+
+    RBSMTetra::cornerNodes.resize(numberOfCornerNodes );
+
+    // Obtain the node IDs of the rigid body cell
+    IR_GIVE_FIELD(ir, cornerNodes, _IFT_Element_nodes);
+}
+
+void RBSMTetra::makeDofmanagers( InputRecord &ir )
+// Makes central and cloned corner nodes for rigid body
+{
+    int nextID;
+    std::vector<OOFEMTXTInputRecord> rbsmInputRecords;
+
+    // find next available DOF manager's global number
+    nextID = RBSMTetra::nextDofmanagerID();
+    // create fake input records to make RBSM DOF managers
+    RBSMTetra::rbsmDummyIr(ir, rbsmInputRecords, nextID);
+
+    // create central DOF manager (master)
+    this->centerDofmanager =
+        RBSMTetra::makeDofmanager( rbsmInputRecords.at( 0 ), nextID );
+
+    // create cloned corner nodes (rigid arm)
+    // (make sure that the dofManArray is initialized)
+    for ( int i = 1; i <= numberOfCornerNodes; ++i ) {
+        this->dofManArray.at( i ) =
+            RBSMTetra::makeDofmanager( rbsmInputRecords.at( i ) );
+    }
+}
+
+
+int RBSMTetra::makeDofmanager( InputRecord &dummyIr )
+// Makes central DOF manager and returns given global number
+{
+    int id;
+    id = RBSMTetra::nextDofmanagerID();
+
+    return RBSMTetra::makeDofmanager( dummyIr, id );
+}
+
+int RBSMTetra::makeDofmanager( InputRecord &dummyIr, int id )
+// Makes central DOF manager and returns given global number
+{
+    int num, nDofman = 0;
+    Domain *d = this->giveDomain();
+    std::vector<OOFEMTXTInputRecord> rbsmInputRecords;
+
+    nDofman = d->dofManagerList.size();
+    if ( nDofman <= 0 ) {
+        OOFEM_ERROR("Domain returned invalid DOF managers count: %d\n", id);
+    }
+
+    // number for central DOF manager of the rigid body
+    num = nDofman + 1;
+
+    std::unique_ptr<DofManager> dmanCenter( classFactory.createDofManager( _IFT_Node_Name, num, d ) );
+    if ( !dmanCenter ) {
+        OOFEM_ERROR("Couldn't create node of type: %s\n", _IFT_Node_Name);
+    }
+
+    dmanCenter->initializeFrom(dummyIr);
+
+    // make sure that global number is unique
+    auto hasSameNum{
+        [&id]( std::unique_ptr<oofem::DofManager> &dman ) { return dman->giveGlobalNumber() == id; }
+    };
+    auto it = std::find_if( d->dofManagerList.begin(), d->dofManagerList.end(), hasSameNum);
+    if (it!=d->dofManagerList.end()){
+        // the global ID already exists
+        OOFEM_ERROR( "Failed to create DOF manager; the global number '%d' is already taken", id );
+    }
+
+    dmanCenter->setGlobalNumber( id );
+
+    d->resizeDofManagers( nDofman + 1 );
+    //d->dofManagerList[nDofman] = std::move( dmanCenter );
+    d->setDofManager(nDofman + 1, std::move(dmanCenter));
+
+    // I think dofManLabelMap should be a property of domain, in that case
+    // we could update mapping from label to local numbers for dofmans.
+    // Since this is not the case, we override the Element::updateLocalNumbering
+    /*
+    if ( d->dofManLabelMap.find(id) == d->dofManLabelMap.end() ) {
+        // label does not exist yet
+        d->dofManLabelMap[num] = nDofman + 1;
+    } else {
+        OOFEM_ERROR("iDofmanager entry already exist (label=%d)", num);
+    }
+    */
+    return id;
+}
+
+void RBSMTetra::updateLocalNumbering(EntityRenumberingFunctor &f)
+{
+    // How element class do this:
+    /*
+    for ( auto &dnum : dofManArray ) {
+        //Functor:
+        std :: map< int, int > :: const_iterator it;
+        if ( ( it = dofmanMap.find(dnum) ) != dofmanMap.end() ) {
+            dnum it->second;
+        }
+        OOFEM_ERROR("component label %d not found", dnum);
+    }
+    */
+
+    // Temporary fix:
+    // Replicate EntityRenumberingFunctor behaviour using
+    // domain->mDofManPlaceInArray instead of dofmanMap
+    for ( auto &dnum : dofManArray ) {
+        std :: map< int, int > :: const_iterator it;
+        dnum = this->giveDomain()->giveDofManPlaceInArray(dnum);
+    }
+    return;
+}
+
+
+int RBSMTetra::nextDofmanagerID()
+// finds the next available DOF manager's global number
+{
+    int num, count, nDofman = 0;
+    Domain *d = this->giveDomain();
+
+    nDofman = d->dofManagerList.size();
+    if ( nDofman <= 0 ) {
+        OOFEM_ERROR("Domain returned invalid DOF managers count: %d\n", num);
+    }
+
+    // first try for the next DOF manager's global number
+    num = nDofman + 1;
+
+    // make sure that global number is unique
+    count = 0;
+    auto hasSameNum{
+        //[num]( std :: unique_ptr< DofManager > dman ) { return dman->giveGlobalNumber() == num; }
+        [&num]( std::unique_ptr<oofem::DofManager> &dman ) { return dman->giveGlobalNumber() == num; }
+    };
+    auto it = std::find_if( d->dofManagerList.begin(), d->dofManagerList.end(), hasSameNum);
+    while (it!=d->dofManagerList.end()){
+        // try to resolve duplicated number
+        num++;
+        count++;
+        it = std::find_if(d->dofManagerList.begin(), d->dofManagerList.end(), hasSameNum);
+        if (count > nDofman ){
+            // prevent infinite loop
+            OOFEM_ERROR( "Failed to find a unique node id for 'RBSM Tetra element'" );
+        }
+    }
+
+    return num;
+}
+
+
+std::vector<FloatArray> RBSMTetra::coordsFromIr( InputRecord &ir )
+// Obtains the coordinates of rigid body cell
+{
+    IntArray cornerNodes;
+    std::vector<FloatArray> nodeCoords;
+
+    nodeCoords.resize(numberOfCornerNodes+1);
+    nodeCoords.at(0).zero();
+
+    // Obtain the node IDs of the rigid body cell
+    IR_GIVE_FIELD(ir, cornerNodes, _IFT_Element_nodes);
+    // Obtain node coordinates
+    for ( int i = 0; i < numberOfCornerNodes; ++i ) {
+        nodeCoords.at(i+1) =
+            this->giveDomain()->giveDofManager(cornerNodes(i))->giveCoordinates();
+        nodeCoords.at(0).add( nodeCoords.at(i+1));
+    }
+    // center node
+    nodeCoords.at( 0 ).times( 1 / numberOfCornerNodes );
+
+    return nodeCoords;
+}
+
+
+void RBSMTetra::rbsmDummyIr(
+    InputRecord &irIn, std::vector<OOFEMTXTInputRecord> &irOut, int master )
+// Obtains the coordinates of rigid body cell
+{
+    char buff[256];
+    std::vector<FloatArray> nodeCoords;
+    std::string irString;
+    std::vector<std::string> dummyInputStrings;
+
+    nodeCoords = RBSMTetra::coordsFromIr( irIn );
+    irOut.resize( numberOfCornerNodes + 1 );
+    dummyInputStrings.resize( numberOfCornerNodes + 1 );
+
+    // central DOF man
+    sprintf( buff, "%s %i   %s 3  %f %f %f",
+        //  "Node"  num  "Coords"   x   y   z
+        _IFT_Node_Name, 0, _IFT_Node_coords,
+        nodeCoords.at( 0 ).at( 1 ),
+        nodeCoords.at( 0 ).at( 2 ),
+        nodeCoords.at( 0 ).at( 3 ) );
+    irString = buff;
+    // central DOF manager dummy input record
+    irOut.at( 0 ) = OOFEMTXTInputRecord( 0, irString );
+
+    // corner (rigid arm) DOF man
+    for ( int i = 1; i < numberOfCornerNodes + 1; ++i ) {
+        sprintf( buff, "%s %i   %s 3  %f %f %f   %s %i",
+            //  "RigidArmNode"  num  "Coords"   x   y   z "Master" id
+            _IFT_RigidArmNode_Name, 0, _IFT_Node_coords,
+            nodeCoords.at( i ).at( 1 ),
+            nodeCoords.at( i ).at( 2 ),
+            nodeCoords.at( i ).at( 3 ),
+            _IFT_RigidArmNode_master, master );
+        irString = buff;
+        // rigid arm dummy input records
+        irOut.at( i ) = OOFEMTXTInputRecord( 0, irString );
+    }
+}
+
+
+// S: todo: update or confirm
+Interface *RBSMTetra::giveInterface( InterfaceType interface )
+{
+    /*
     if ( interface == ZZNodalRecoveryModelInterfaceType ) {
         return static_cast< ZZNodalRecoveryModelInterface * >(this);
     } else if ( interface == NodalAveragingRecoveryModelInterfaceType ) {
@@ -95,14 +332,13 @@ RBSMTetra :: giveInterface(InterfaceType interface)
     } else if ( interface == HuertaErrorEstimatorInterfaceType ) {
         return static_cast< HuertaErrorEstimatorInterface * >(this);
     }
-*/
+    */
 
     return NULL;
 }
 
 // S: todo: update or confirm
-FEInterpolation *
-RBSMTetra :: giveInterpolation() const
+FEInterpolation *RBSMTetra::giveInterpolation() const
 {
     return & interpolation;
 }

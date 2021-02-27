@@ -45,14 +45,17 @@
 #include "sm/ErrorEstimators/zzerrorestimator.h"
 #include "mmashapefunctprojection.h"
 
+#include "oofemtxtinputrecord.h"
+
 #define _IFT_RBSMTetra_Name "rbsmtetra"
 
 namespace oofem {
 class FEI3dTetLin;
 
 /**
- * This class implements a linear tetrahedral four-node finite element for stress analysis.
- * Each node has 3 degrees of freedom.
+ * This class implements a tetrahedral rigid body - spring model.
+ * Each element has one master node with 6 degree of freedom.
+ * @author Saeid Mehrpay
  */
 class RBSMTetra : public Structural3DElement
                 /*,
@@ -67,12 +70,28 @@ class RBSMTetra : public Structural3DElement
 protected:
     static FEI3dTetLin interpolation;
 
+    static std::vector< IntArray > cornerCoords;
+    /// number of vertices
+    int numberOfCornerNodes;
+    /// global ID of rigid body cell central node
+    int centerDofmanager;
+    /// mesh nodes defining corners of the rigid body
+    IntArray cornerNodes;
+    /// facets indices of rigid body
+    IntArray facetArray;
+    /*
+    // cloned corner nodes for debug purpose
+    IntArray clonedNodes;
+    */
+
+
 public:
     RBSMTetra(int n, Domain * d);
     virtual ~RBSMTetra() { }
 
     FEInterpolation *giveInterpolation() const override;
 
+    void initializeFrom(InputRecord &ir) override;
     void computeLumpedMassMatrix(FloatMatrix &answer, TimeStep *tStep) override;
     int giveNumberOfIPForMassMtrxIntegration() override { return 4; }
     Interface *giveInterface(InterfaceType it) override;
@@ -112,6 +131,22 @@ public:
                                                           HuertaErrorEstimator :: AnalysisMode aMode) override;
     void HuertaErrorEstimatorI_computeNmatrixAt(GaussPoint *gp, FloatMatrix &answer) override;
 */
+    /// Make central and cloned nodes for rigid body
+    void makeDofmanagers( InputRecord &ir );
+    std::vector<FloatArray> coordsFromIr( InputRecord &ir );
+    int makeDofmanager( InputRecord &dummyIr );
+    int makeDofmanager( InputRecord &dummyIr, int id );
+    int nextDofmanagerID();
+    void rbsmDummyIr( InputRecord &irIn, std::vector<OOFEMTXTInputRecord> &irOut, int master );
+    void setCornerNodesFromIr( InputRecord &ir );
+    /**
+     * Local renumbering support. For some tasks (parallel load balancing, for example) it is necessary to
+     * renumber the entities.
+     * Since RBSM Tetra class cannot access dofManLabelMap we have to use this override as a work around.
+     * This should be amended once dofManLabelMap is a property of Domain class.
+     * @param f is a functor that decides the renumbering will not be used in this override.
+     */
+    void updateLocalNumbering( EntityRenumberingFunctor &f ) override;
 };
 } // end namespace oofem
 #endif // rbsmtetra_h
