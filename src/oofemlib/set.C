@@ -45,9 +45,13 @@
 #include "feinterpol3d.h"
 #include "contextioerr.h"
 #include "dynamicinputrecord.h"
+
+#include "classfactory.h";
 #include <list>
 
 namespace oofem {
+REGISTER_Set(Set);
+
 void Set :: initializeFrom(InputRecord &ir)
 {
     FEMComponent :: initializeFrom(ir);
