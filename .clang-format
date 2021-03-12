@@ -97,13 +97,12 @@ PenaltyBreakString: 1000
 PenaltyExcessCharacter: 1000000
 PenaltyReturnTypeOnItsOwnLine: 60
 PointerAlignment: Right
-# for CLion:
 RawStringFormats:
+# for CLion:
   - Language:        TextProto
     BasedOnStyle:    google
     Delimiters:      [pb]
-# older versions of clang format (obsolete):
-#RawStringFormats:
+# for old versions of clang format (obsolete):
 #  - Delimiter:       pb
 #    Language:        TextProto
 #    BasedOnStyle:    google
@@ -119,9 +118,11 @@ SpacesBeforeTrailingComments: 1
 SpacesInAngles:  false
 SpacesInContainerLiterals: true
 SpacesInCStyleCastParentheses: false
+# spaces in parenthesis is not consistently used in the code.
 SpacesInParentheses: true
+#
 SpacesInSquareBrackets: false
-Standard:        Cpp03
+Standard:        C++17
 TabWidth:        8
 UseTab:          Never
 ...
