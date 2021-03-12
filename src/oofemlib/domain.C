@@ -483,8 +483,14 @@ Domain :: instanciateYourself(DataReader &dr)
     bool ncontactman = false;
     bool nfracman = false;
     //XfemManager *xMan;
+
     // mapping from label to local numbers for dofmans and elements
-    std :: map< int, int >dofManLabelMap, elemLabelMap;
+    // std :: map< int, int >dofManLabelMap, elemLabelMap;
+    // S: dofManLabelMap and elemLabelMap are now domain properties to
+    // allow adding new components dynamically during the instantiation
+    // process
+    dofManLabelMap.clear();
+    elemLabelMap.clear();
 
     // read type of Domain to be solved
     {
@@ -969,6 +975,10 @@ Domain :: instanciateYourself(DataReader &dr)
 
 
     BuildMaterialToElementMap();
+
+    // S: dofManLabelMap and elemLabelMap are no longer needed
+    dofManLabelMap.clear();
+    elemLabelMap.clear();
 
     return 1;
 }

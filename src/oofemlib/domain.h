@@ -114,7 +114,7 @@ class ContactManager;
  */
 class OOFEM_EXPORT Domain
 {
-    public:
+public:
     /// Element list.
     std :: vector< std :: unique_ptr< Element > > elementList;
     /// Dof manager list.
@@ -222,6 +222,21 @@ private:
 public:
     /// Keeps track of next free dof ID (for special Lagrange multipliers, XFEM and such)
     int freeDofID;
+
+    /**
+    * Mapping from label to local numbers for dofmans as they are created.
+    * This is used to relate component labels into consecutive component
+    * numbering starting from 1, so it is possible to have array based
+    * access to labels as they appear in the output.
+    */
+    std::map< int, int > dofManLabelMap;
+
+    /**
+     * Mapping from label to local numbers for elements as they are created
+     */
+    std::map< int, int > elemLabelMap;
+
+
 private:
 
 #ifdef __PARALLEL_MODE
