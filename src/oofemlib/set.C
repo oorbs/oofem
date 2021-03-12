@@ -46,7 +46,7 @@
 #include "contextioerr.h"
 #include "dynamicinputrecord.h"
 
-#include "classfactory.h";
+#include "classfactory.h"
 #include <list>
 
 namespace oofem {
