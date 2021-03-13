@@ -67,45 +67,59 @@ class RBSMTetra : public Structural3DElement
                   public HuertaErrorEstimatorInterface
                 */
 {
+// .: properties :.
+public:
+
 protected:
     static FEI3dTetLin interpolation;
 
-    static std::vector< IntArray > cornerCoords;
+    /// cloned nodes of each geometry node
+    static std::map<int, std::set<int>> clonesOfGeoNode;
+    /// cloned nodes of each geometry node
+    static std::map<int, std::set<int>> cellElementsOfGeoNode;
     /// number of vertices
-    int numberOfCornerNodes;
+    int numberOfCornerNodes; // make static constant
     /// global ID of rigid body cell central node
     int centerDofmanager;
     /// mesh nodes defining corners of the rigid body
-    IntArray cornerNodes;
+    IntArray geoNodes;
     /// facets indices of rigid body
     IntArray facetArray;
-    /*
-    // cloned corner nodes for debug purpose
-    IntArray clonedNodes;
-    */
 
 
+// .: methods :.
 public:
     RBSMTetra(int n, Domain * d);
     virtual ~RBSMTetra() { }
 
     FEInterpolation *giveInterpolation() const override;
 
+    /// @returns index numbers of clone nodes associated with the geometry node
+    static std::set<int> giveClonesOfGeoNode(int geoNode);
+    /// @returns index numbers of elements associated with the geometry node
+    static std::set<int> giveCellElementsOfGeoNode(int geoNode);
+    /// @returns index numbers of cell node of elements associated with the geometry node
+    //static std::set<int> giveCellNodesOfGeoNode( int geoNode );
+
+    /// @returns index number of rigid body cell central node
+    int giveCellDofmanagerNumber() { return centerDofmanager; }
+
     void initializeFrom(InputRecord &ir) override;
     void computeLumpedMassMatrix(FloatMatrix &answer, TimeStep *tStep) override;
     int giveNumberOfIPForMassMtrxIntegration() override { return 4; }
     Interface *giveInterface(InterfaceType it) override;
-
     // definition & identification
     const char *giveInputRecordName() const override { return _IFT_RBSMTetra_Name; }
     const char *giveClassName() const override { return "RBSMTetra"; }
 
+/*
 #ifdef __OOFEG
     void drawRawGeometry(oofegGraphicContext &gc, TimeStep *tStep) override;
     void drawDeformedGeometry(oofegGraphicContext &gc, TimeStep *tStep, UnknownType) override;
     void drawScalar(oofegGraphicContext &gc, TimeStep *tStep) override;
     void drawSpecial(oofegGraphicContext &gc, TimeStep *tStep) override;
 #endif
+*/
 
     double giveRelativeSelfComputationalCost() override { return 2.15; }
 
@@ -134,19 +148,43 @@ public:
     /// Make central and cloned nodes for rigid body
     void makeDofmanagers( InputRecord &ir );
     std::vector<FloatArray> coordsFromIr( InputRecord &ir );
-    int makeDofmanager( InputRecord &dummyIr );
-    int makeDofmanager( InputRecord &dummyIr, int id );
-    int nextDofmanagerID();
-    void rbsmDummyIr( InputRecord &irIn, std::vector<OOFEMTXTInputRecord> &irOut, int master );
-    void setCornerNodesFromIr( InputRecord &ir );
     /**
+     * Makes a DOF manager and returns given component number
+     * @returns component number which is based on an arithmetic
+     * progression starting from 1 and is assigned automatically.
+     */
+    int makeDofmanager( InputRecord &dummyIr );
+    /**
+     * Makes a DOF manager and returns given component number
+     * @param globalNumber represents the number inside an input file.
+     * @returns component number which is based on an arithmetic
+     * progression starting from 1 and is assigned automatically.
+     */
+    int makeDofmanager( InputRecord &dummyIr, int globalNumber );
+    /**
+     * @returns next available global number for a new DOF manager,
+     * global number represents the number given inside an input file.
+     */
+    int nextDofmanagerGlobalNumber();
+#if 0 // #ifndef PROPERTY_LABEL_MAPS
+/**
      * Local renumbering support. For some tasks (parallel load balancing, for example) it is necessary to
      * renumber the entities.
-     * Since RBSM Tetra class cannot access dofManLabelMap we have to use this override as a work around.
-     * This should be amended once dofManLabelMap is a property of Domain class.
+     * If RBSM Tetra class cannot access dofManLabelMap we have to use this override as a work around.
+     * A more robust solution is dofManLabelMap be a property of Domain class.
      * @param f is a functor that decides the renumbering will not be used in this override.
      */
     void updateLocalNumbering( EntityRenumberingFunctor &f ) override;
+#endif
+
+protected:
+    void rbsmDummyIr( InputRecord &irIn, std::vector<OOFEMTXTInputRecord> &irOut, int master );
+    /// set the geometry nodes label numbers from input record
+    void setGeoNodesFromIr( InputRecord &ir );
+    /// update the geometry nodes to clone nodes map
+    void updateClonesOfGeoNode();
+    /// update the geometry nodes to center nodes map
+    void updateCellElementsOfGeoNode();
 };
 } // end namespace oofem
 #endif // rbsmtetra_h

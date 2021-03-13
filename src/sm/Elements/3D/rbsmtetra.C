@@ -59,7 +59,9 @@ namespace oofem {
 REGISTER_Element(RBSMTetra);
 
 // S: todo: update or confirm
-FEI3dTetLin RBSMTetra :: interpolation;
+FEI3dTetLin RBSMTetra::interpolation;
+std::map<int, std::set<int> > RBSMTetra::clonesOfGeoNode;
+std::map<int, std::set<int> > RBSMTetra::cellElementsOfGeoNode;
 
 // S: todo: update or confirm
 RBSMTetra :: RBSMTetra(int n, Domain *aDomain) :
@@ -89,30 +91,31 @@ void RBSMTetra::initializeFrom( InputRecord &ir )
     // the corner nodes.
     Structural3DElement::initializeFrom( ir );
 
-    RBSMTetra::setCornerNodesFromIr( ir );
+    RBSMTetra::setGeoNodesFromIr( ir );
     RBSMTetra::makeDofmanagers( ir );
 
+    RBSMTetra::updateClonesOfGeoNode();
+    RBSMTetra::updateCellElementsOfGeoNode();
 }
 
 
-void RBSMTetra::setCornerNodesFromIr( InputRecord &ir )
-// Obtains the coordinates of rigid body cell
+void RBSMTetra::setGeoNodesFromIr( InputRecord &ir )
+// Obtains the geometry nodes of rigid body cell from the input record
 {
-
-    RBSMTetra::cornerNodes.resize(numberOfCornerNodes );
+    RBSMTetra::geoNodes.resize(numberOfCornerNodes );
 
     // Obtain the node IDs of the rigid body cell
-    IR_GIVE_FIELD(ir, cornerNodes, _IFT_Element_nodes);
+    IR_GIVE_FIELD(ir, geoNodes, _IFT_Element_nodes);
 }
 
 void RBSMTetra::makeDofmanagers( InputRecord &ir )
-// Makes central and cloned corner nodes for rigid body
+// Makes central and cloned corner nodes for the rigid body
 {
     int nextID;
     std::vector<OOFEMTXTInputRecord> rbsmInputRecords;
 
     // find next available DOF manager's global number
-    nextID = RBSMTetra::nextDofmanagerID();
+    nextID = RBSMTetra::nextDofmanagerGlobalNumber();
     // create fake input records to make RBSM DOF managers
     RBSMTetra::rbsmDummyIr(ir, rbsmInputRecords, nextID);
 
@@ -128,32 +131,67 @@ void RBSMTetra::makeDofmanagers( InputRecord &ir )
     }
 }
 
-
-int RBSMTetra::makeDofmanager( InputRecord &dummyIr )
-// Makes central DOF manager and returns given global number
+void RBSMTetra::updateClonesOfGeoNode()
+// adds the cloned geometry nodes of this element to 'clonesOfGeoNode' map
 {
-    int id;
-    id = RBSMTetra::nextDofmanagerID();
+    int size = this->dofManArray.giveSize();
+    // dof Manager size and geometry nodes size consistency check
+    if ( size != this->geoNodes.giveSize() ) {
+        OOFEM_ERROR(
+            "Inconsistent size of geometry nodes and DOF manager arrays for element %d",
+            this->giveGlobalNumber() );
+    }
 
-    return RBSMTetra::makeDofmanager( dummyIr, id );
+    for ( int i = 0; i < size; ++i ) {
+        int geo   = this->geoNodes( i );
+        int clone = this->dofManArray( i );
+        RBSMTetra::clonesOfGeoNode[geo].insert( clone );
+    }
 }
 
-int RBSMTetra::makeDofmanager( InputRecord &dummyIr, int id )
-// Makes central DOF manager and returns given global number
+void RBSMTetra::updateCellElementsOfGeoNode()
+// adds the index number of this element to 'cellElementsOfGeoNode' map
 {
-    int num, nDofman = 0;
+    int size = this->dofManArray.giveSize();
+    // dof Manager size and geometry nodes size consistency check
+    if ( size != this->geoNodes.giveSize() ) {
+        OOFEM_ERROR(
+            "Inconsistent size of geometry nodes and DOF manager arrays for element %d",
+            this->giveGlobalNumber() );
+    }
+
+    for ( int i = 0; i < size; ++i ) {
+        int geo = this->geoNodes( i );
+        // add 'number' of current rigid body element
+        RBSMTetra::cellElementsOfGeoNode[geo].insert( number );
+    }
+}
+
+int RBSMTetra::makeDofmanager( InputRecord &dummyIr )
+// Makes central DOF manager and returns given number
+{
+    int globalNumber;
+    globalNumber = RBSMTetra::nextDofmanagerGlobalNumber();
+
+    return RBSMTetra::makeDofmanager( dummyIr, globalNumber );
+}
+
+int RBSMTetra::makeDofmanager( InputRecord &dummyIr, int globalNumber )
+// Makes central DOF manager and returns given number
+{
+    int number, nDofman = 0;
     Domain *d = this->giveDomain();
     std::vector<OOFEMTXTInputRecord> rbsmInputRecords;
 
     nDofman = d->dofManagerList.size();
     if ( nDofman <= 0 ) {
-        OOFEM_ERROR("Domain returned invalid DOF managers count: %d\n", id);
+        OOFEM_ERROR("Domain returned invalid DOF managers count: %d\n", globalNumber );
     }
 
     // number for central DOF manager of the rigid body
-    num = nDofman + 1;
+    number = nDofman + 1;
 
-    std::unique_ptr<DofManager> dmanCenter( classFactory.createDofManager( _IFT_Node_Name, num, d ) );
+    std::unique_ptr<DofManager> dmanCenter( classFactory.createDofManager( _IFT_Node_Name, number, d ) );
     if ( !dmanCenter ) {
         OOFEM_ERROR("Couldn't create node of type: %s\n", _IFT_Node_Name);
     }
@@ -162,48 +200,39 @@ int RBSMTetra::makeDofmanager( InputRecord &dummyIr, int id )
 
     // make sure that global number is unique
     auto hasSameNum{
-        [&id]( std::unique_ptr<oofem::DofManager> &dman ) { return dman->giveGlobalNumber() == id; }
+        [&globalNumber]( std::unique_ptr<oofem::DofManager> &dman ) { return dman->giveGlobalNumber() == globalNumber; }
     };
     auto it = std::find_if( d->dofManagerList.begin(), d->dofManagerList.end(), hasSameNum);
     if (it!=d->dofManagerList.end()){
         // the global ID already exists
-        OOFEM_ERROR( "Failed to create DOF manager; the global number '%d' is already taken", id );
+        OOFEM_ERROR( "Failed to create DOF manager; the global number '%d' is already taken", globalNumber );
     }
 
-    dmanCenter->setGlobalNumber( id );
+    dmanCenter->setGlobalNumber( globalNumber );
 
     d->resizeDofManagers( nDofman + 1 );
-    //d->dofManagerList[nDofman] = std::move( dmanCenter );
-    d->setDofManager(nDofman + 1, std::move(dmanCenter));
 
-    // I think dofManLabelMap should be a property of domain, in that case
-    // we could update mapping from label to local numbers for dofmans.
-    // Since this is not the case, we override the Element::updateLocalNumbering
-    /*
-    if ( d->dofManLabelMap.find(id) == d->dofManLabelMap.end() ) {
-        // label does not exist yet
-        d->dofManLabelMap[num] = nDofman + 1;
+    d->setDofManager(number, std::move(dmanCenter));
+
+#if 1 // #ifdef RBSM_PROPERTY_LABEL_MAPS
+    // if dofManLabelMap is a property of domain, i.e. we can
+    // update mapping from label (global number) to index (component number)
+    // alternatively we can override the Element::updateLocalNumbering
+    if ( d->dofManLabelMap.find(globalNumber) == d->dofManLabelMap.end() ) {
+        // label does not exist
+        d->dofManLabelMap[globalNumber] = number;
     } else {
-        OOFEM_ERROR("iDofmanager entry already exist (label=%d)", num);
+        OOFEM_ERROR("Calculated index for DOF manager already exists (nDofman+1=%d)", number);
     }
-    */
-    return id;
+#endif
+
+    return number;
 }
 
+#if 0 // #ifndef RBSM_PROPERTY_LABEL_MAPS
+// override local numbering i.e. label maps are not properties of domain
 void RBSMTetra::updateLocalNumbering(EntityRenumberingFunctor &f)
 {
-    // How element class do this:
-    /*
-    for ( auto &dnum : dofManArray ) {
-        //Functor:
-        std :: map< int, int > :: const_iterator it;
-        if ( ( it = dofmanMap.find(dnum) ) != dofmanMap.end() ) {
-            dnum it->second;
-        }
-        OOFEM_ERROR("component label %d not found", dnum);
-    }
-    */
-
     // Temporary fix:
     // Replicate EntityRenumberingFunctor behaviour using
     // domain->mDofManPlaceInArray instead of dofmanMap
@@ -213,9 +242,9 @@ void RBSMTetra::updateLocalNumbering(EntityRenumberingFunctor &f)
     }
     return;
 }
+#endif
 
-
-int RBSMTetra::nextDofmanagerID()
+int RBSMTetra::nextDofmanagerGlobalNumber()
 // finds the next available DOF manager's global number
 {
     int num, count, nDofman = 0;
@@ -337,10 +366,31 @@ Interface *RBSMTetra::giveInterface( InterfaceType interface )
     return NULL;
 }
 
+
 // S: todo: update or confirm
 FEInterpolation *RBSMTetra::giveInterpolation() const
 {
     return & interpolation;
+}
+
+std::set<int> RBSMTetra::giveClonesOfGeoNode(int geoNode)
+{
+    std::set<int> answer;
+    std::map<int, std::set<int> >::iterator it = clonesOfGeoNode.find(geoNode);
+    if(it != clonesOfGeoNode.end()){
+        answer = it->second;
+    }
+    return answer;
+}
+
+std::set<int> RBSMTetra::giveCellElementsOfGeoNode(int geoNode)
+{
+    std::set<int> answer;
+    std::map<int, std::set<int> >::iterator it = cellElementsOfGeoNode.find(geoNode);
+    if(it != cellElementsOfGeoNode.end()){
+        answer = it->second;
+    }
+    return answer;
 }
 
 
