@@ -482,6 +482,18 @@ Domain :: instanciateYourself(DataReader &dr)
     bool nxfemman = false;
     bool ncontactman = false;
     bool nfracman = false;
+//<<<<<<< _RTetra_V-7
+    //XfemManager *xMan;
+
+    // mapping from label to local numbers for dofmans and elements
+    // std :: map< int, int >dofManLabelMap, elemLabelMap;
+    // S: dofManLabelMap and elemLabelMap are now domain properties to
+    // allow adding new components dynamically during the instantiation
+    // process
+    dofManLabelMap.clear();
+    elemLabelMap.clear();
+//=======
+//>>>>>>> _RT_V-6_adding_beams
 
     // read type of Domain to be solved
     {
@@ -839,7 +851,14 @@ Domain :: instanciateYourself(DataReader &dr)
             // read type of set
             IR_GIVE_RECORD_KEYWORD_FIELD(ir, name, num);
             // Only one set for now (i don't see any need to ever introduce any other version)
-            std :: unique_ptr< Set > set = std::make_unique<Set>(num, this); //classFactory.createSet(name.c_str(), num, this)
+            //std :: unique_ptr< Set > set = std::make_unique<Set>(num, this); //classFactory.createSet(name.c_str(), num, this)
+            // S: Regarding new changes to bring sets into factory and Öhman's comment above:
+            // Original 'Set' class has limitation with accessing polygon and polyhedron geometry
+            // nodes or Voronoi cell nodes (application in methods such as lattice or discrete
+            // models). It is safer to do these developments by extending the 'Set' class by
+            // introducing a new Set type (Polyset).
+            //std::unique_ptr<Set> set = classFactory.createSet( name.c_str(), num, this );
+            std::unique_ptr<Set> set( classFactory.createSet( name.c_str(), num, this ) );
             if ( !set ) {
                 OOFEM_ERROR("Couldn't create set: %s", name.c_str());
             }
@@ -945,6 +964,11 @@ Domain :: instanciateYourself(DataReader &dr)
 
     BuildMaterialToElementMap();
 
+//<<<<<<<<<<<<<<<<<<<<<<<<
+    // S: dofManLabelMap and elemLabelMap are no longer needed
+    dofManLabelMap.clear();
+    elemLabelMap.clear();
+//>>>>>>>>>>>>>>>>>>>>>>>>
     return 1;
 }
 
@@ -1332,7 +1356,7 @@ Domain :: createDofs()
             // Finally create the new DOF: 
             //printf("Creating: node %d, id = %d, dofType = %d, bc = %d, ic = %d\n", i, id, dtype, bcid, icid);
             if ( !dman->hasDofID((DofIDItem)id) ) {
-
+                // @todo: S: it may be a good idea to release a warning for rigid arm nodes
                 Dof *dof = classFactory.createDof(dtype, (DofIDItem)id, dman);
                 dof->setBcId(bcid); // Note: slave dofs and such will simple ignore this.
                 dof->setIcId(icid);

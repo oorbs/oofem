@@ -36,8 +36,16 @@ BraceWrapping:
   SplitEmptyFunction: true
   SplitEmptyRecord: true
   SplitEmptyNamespace: true
-BreakBeforeBinaryOperators: All
+# currently all of the breaks in the source are after '=' operator,
+# so the old setting was definitely wrong.
+# Old: BreakBeforeBinaryOperators: All
+BreakBeforeBinaryOperators: NonAssignment
+# Majority of the code uses break after inheritance comma
+# I recommend using:
+##BreakInheritanceList: AfterColon
+# ... and delete this line:
 BreakBeforeInheritanceComma: false
+#
 BreakBeforeTernaryOperators: true
 BreakConstructorInitializersBeforeComma: false
 BreakConstructorInitializers: AfterColon
@@ -89,10 +97,16 @@ PenaltyBreakString: 1000
 PenaltyExcessCharacter: 1000000
 PenaltyReturnTypeOnItsOwnLine: 60
 PointerAlignment: Right
-RawStringFormats: 
-  - Delimiters:       [pb]
-    Language:        TextProto
+#
+RawStringFormats:
+  - Language:        TextProto
     BasedOnStyle:    google
+    Delimiters:      [pb]
+# older versions of clang format (obsolete):
+#  - Delimiter:       pb
+#    Language:        TextProto
+#    BasedOnStyle:    google
+#
 ReflowComments:  true
 SortIncludes:    false
 SortUsingDeclarations: true
@@ -107,7 +121,7 @@ SpacesInContainerLiterals: true
 SpacesInCStyleCastParentheses: false
 SpacesInParentheses: true
 SpacesInSquareBrackets: false
-Standard:        Cpp03
+Standard:        c++17
 TabWidth:        8
 UseTab:          Never
 ...

@@ -32,18 +32,24 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef set_h
-#define set_h
+#ifndef polyset_h
+#define polyset_h
 
+#include "set.h"
+
+/*
 #include "femcmpnn.h"
 #include "intarray.h"
-
 #include <list>
+*/
 
 namespace oofem {
 ///@name Input fields for Set
 //@{
-#define _IFT_Set_Name "set"
+#define _IFT_Polyset_Name "polyset"
+#define _IFT_Polyset_rtetClonesOfGeoNodes "rtetclonesofnodes" ///< List of clone-nodes of rigid tet from input mesh nodes
+#define _IFT_Polyset_rtetCellsOfGeoNodes  "rtetcellsofnodes"  ///< List of center-nodes of rigid tet from input mesh nodes
+/*
 #define _IFT_Set_nodes "nodes" ///< List of specific node indices.
 #define _IFT_Set_allNodes "allnodes" ///< List of specific node indices.
 #define _IFT_Set_nodeRanges "noderanges" ///< List of node index ranges.
@@ -53,19 +59,23 @@ namespace oofem {
 #define _IFT_Set_elementBoundaries "elementboundaries" ///< Interleaved array of element index + boundary number
 #define _IFT_Set_elementEdges "elementedges" ///< Interleaved array of element index + edge number
 #define _IFT_Set_elementSurfaces "elementsurfaces" ///< Interleaved array of element index + surface number
+*/
 //@}
 
+/*
 class EntityRenumberingFunction;
 class Range;
+*/
 
 /**
- * Set of elements, boundaries, edges and/or nodes.
- * Describes a collection of components which are given easy access to for example boundary conditions.
- * @author Mikael Öhman
+ * Extension of the 'set' class for accessing polyhedral shapes components.
+ * Currently developed for Rigid Bodies, with potential to be extended to lattice models.
+ * @author Saeid Mehrpay
  */
-class OOFEM_EXPORT Set : public FEMComponent
+class OOFEM_EXPORT Polyset : public Set
 {
 protected:
+/*
     IntArray elements; ///< Element numbers.
     mutable bool mElementListIsSorted;
     mutable IntArray mElementsSorted;
@@ -74,18 +84,21 @@ protected:
     IntArray elementSurfaces; /// Element numbers + surface numbers (interleaved).
     IntArray nodes; ///< Node numbers.
     IntArray totalNodes; ///< Unique set of nodes (computed).
+*/
 
 public:
     /**
-     * Creates an empty set with given number and belonging to given domain.
-     * @param n Set number.
+     * Constructor
+     * @param n Polyset number.
      * @param d Domain to which component belongs to.
      */
-    Set(int n, Domain * d) : FEMComponent(n, d), mElementListIsSorted(false) { }
-    virtual ~Set() { }
+    Polyset(int n, Domain * d) : Set(n, d) { }
+    virtual ~Polyset() { }
 
     void initializeFrom(InputRecord &ir) override;
     void giveInputRecord(DynamicInputRecord &input) override;
+
+#if 0
     /**
      * Returns list of elements within set.
      * @return List of element numbers.
@@ -160,16 +173,34 @@ public:
 
     void saveContext(DataStream &stream, ContextMode mode) override;
     void restoreContext(DataStream &stream, ContextMode mode) override;
+#endif
 
-    const char *giveClassName() const override { return "Set"; }
-    const char *giveInputRecordName() const override { return _IFT_Set_Name; }
+    const char *giveClassName() const override { return "Polyset"; }
+    const char *giveInputRecordName() const override { return _IFT_Polyset_Name; }
 
 protected:
     /**
      * Converts list ranges to list of individual values + individually specified values.
      */
-    void computeIntArray(IntArray &answer, const IntArray &specified, std :: list< Range >ranges);
+    //void computeIntArray(IntArray &answer, const IntArray &specified, std :: list< Range >ranges);
+
+    /**
+     * Finds the clone node of cells from the given list of associated geometry
+     * (mesh) nodes' global number
+     */
+    void clonesOfGeoNodes(IntArray &answer, const IntArray &nodes);
+    /**
+     * @returns central node of cells associated with list of geometry (mesh)
+     * nodes' global number
+     * @attention it is assumed that the set and the elements have same domain
+     */
+    std::set<int> cellNodesOfGeoNode( int geoNode );
+    /**
+     * Finds the central node of cells from the given list of associated geometry
+     * (mesh) nodes
+     */
+    void cellNodesOfGeoNodes(IntArray &answer, const IntArray &nodes);
 };
 }
 
-#endif // set_h
+#endif // polyset_h

@@ -166,6 +166,8 @@ template< typename T > Dof *dofCreator(DofIDItem dofid, DofManager *dman) { retu
 ///@todo What is this? Doesn't seem needed / Mikael
 #define REGISTER_Quasicontinuum(class) static bool __dummy_ ## class OOFEM_ATTR_UNUSED = GiveClassFactory().registerQuasicontinuum(_IFT_ ## class ## _Name, < QuasiContinuum, class, ????? > );
 //@}
+// S: New derivations of set class are needed (e.g. polyset.C & polyset.h). Possible application instances: Voronoi cell nodes, facet nodes of lattice, etc.
+#define REGISTER_Set(class) static bool __dummy_ ## class OOFEM_ATTR_UNUSED = GiveClassFactory().registerSet(_IFT_ ## class ## _Name, CTOR< Set, class, int, Domain* > );
 
 /**
  * Class Factory allows to register terminal oofem classes, based on their membership
@@ -182,6 +184,8 @@ private:
     std :: map < std :: string, std::unique_ptr<Element> ( * )(int, Domain *) > elemList;
     /// Associative container containing dofmanager creators with dofmanager  name as key.
     std :: map < std :: string, std::unique_ptr<DofManager> ( * )(int, Domain *) > dofmanList;
+    /// Associative container containing set creators with set name as key.
+    std :: map < std :: string, std::unique_ptr<Set> ( * )(int, Domain *) > setList;
     /// Associative container containing boundary condition creators with bc  name as key.
     std :: map < std :: string, std::unique_ptr<GeneralBoundaryCondition> ( * )(int, Domain *) > bcList;
     /// Associative container containing cross section creators with cross section name as key.
@@ -453,6 +457,19 @@ public:
      * @return Newly allocated object of requested type, null if keyword not supported.
      */
     Dof *createDof(dofType type, DofIDItem dofid, DofManager *dman);
+    /**
+     * Creates new instance of a set corresponding to given keyword.
+     * @param name Keyword string determining the type of new instance.
+     * @param num  Set number.
+     * @param domain Domain assigned to new Set.
+     * @return Newly allocated object of requested type, null if keyword not supported.
+     */
+    std::unique_ptr<Set> createSet(const char *name, int num, Domain *domain);
+    /**
+     * Registers a new set in the class factory.
+     * @param name Keyword string.
+     */
+    bool registerSet( const char *name, std::unique_ptr<Set> ( *creator )( int, Domain * ) );
     /**
      * Creates new instance of SparseLinearSystemNM corresponding
      * to given type.
