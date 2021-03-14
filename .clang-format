@@ -97,16 +97,16 @@ PenaltyBreakString: 1000
 PenaltyExcessCharacter: 1000000
 PenaltyReturnTypeOnItsOwnLine: 60
 PointerAlignment: Right
-# for CLion:
+#
 RawStringFormats:
   - Language:        TextProto
     BasedOnStyle:    google
     Delimiters:      [pb]
 # older versions of clang format (obsolete):
-#RawStringFormats:
 #  - Delimiter:       pb
 #    Language:        TextProto
 #    BasedOnStyle:    google
+#
 ReflowComments:  true
 SortIncludes:    false
 SortUsingDeclarations: true
