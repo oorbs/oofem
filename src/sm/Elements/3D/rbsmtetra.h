@@ -166,16 +166,6 @@ public:
      * global number represents the number given inside an input file.
      */
     int nextDofmanagerGlobalNumber();
-#if 0 // #ifndef PROPERTY_LABEL_MAPS
-/**
-     * Local renumbering support. For some tasks (parallel load balancing, for example) it is necessary to
-     * renumber the entities.
-     * If RBSM Tetra class cannot access dofManLabelMap we have to use this override as a work around.
-     * A more robust solution is dofManLabelMap be a property of Domain class.
-     * @param f is a functor that decides the renumbering will not be used in this override.
-     */
-    void updateLocalNumbering( EntityRenumberingFunctor &f ) override;
-#endif
 
 protected:
     void rbsmDummyIr( InputRecord &irIn, std::vector<OOFEMTXTInputRecord> &irOut, int master );

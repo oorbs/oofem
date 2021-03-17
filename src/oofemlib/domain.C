@@ -482,18 +482,6 @@ Domain :: instanciateYourself(DataReader &dr)
     bool nxfemman = false;
     bool ncontactman = false;
     bool nfracman = false;
-//<<<<<<< _RTetra_V-7
-    //XfemManager *xMan;
-
-    // mapping from label to local numbers for dofmans and elements
-    // std :: map< int, int >dofManLabelMap, elemLabelMap;
-    // S: dofManLabelMap and elemLabelMap are now domain properties to
-    // allow adding new components dynamically during the instantiation
-    // process
-    dofManLabelMap.clear();
-    elemLabelMap.clear();
-//=======
-//>>>>>>> _RT_V-6_adding_beams
 
     // read type of Domain to be solved
     {
@@ -852,11 +840,9 @@ Domain :: instanciateYourself(DataReader &dr)
             IR_GIVE_RECORD_KEYWORD_FIELD(ir, name, num);
             // Only one set for now (i don't see any need to ever introduce any other version)
             //std :: unique_ptr< Set > set = std::make_unique<Set>(num, this); //classFactory.createSet(name.c_str(), num, this)
-            // S: Regarding new changes to bring sets into factory and Öhman's comment above:
-            // Original 'Set' class has limitation with accessing polygon and polyhedron geometry
+            // Original 'Set' class had limitation with accessing polygon and polyhedron geometry
             // nodes or Voronoi cell nodes (application in methods such as lattice or discrete
-            // models). It is safer to do these developments by extending the 'Set' class by
-            // introducing a new Set type (Polyset).
+            // models). We extended the 'Set' class introducing a new Set type (Polyset).
             //std::unique_ptr<Set> set = classFactory.createSet( name.c_str(), num, this );
             std::unique_ptr<Set> set( classFactory.createSet( name.c_str(), num, this ) );
             if ( !set ) {
@@ -964,11 +950,6 @@ Domain :: instanciateYourself(DataReader &dr)
 
     BuildMaterialToElementMap();
 
-//<<<<<<<<<<<<<<<<<<<<<<<<
-    // S: dofManLabelMap and elemLabelMap are no longer needed
-    dofManLabelMap.clear();
-    elemLabelMap.clear();
-//>>>>>>>>>>>>>>>>>>>>>>>>
     return 1;
 }
 

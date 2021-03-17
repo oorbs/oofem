@@ -214,35 +214,8 @@ int RBSMTetra::makeDofmanager( InputRecord &dummyIr, int globalNumber )
 
     d->setDofManager(number, std::move(dmanCenter));
 
-#if 1 // #ifdef RBSM_PROPERTY_LABEL_MAPS
-    // if dofManLabelMap is a property of domain, i.e. we can
-    // update mapping from label (global number) to index (component number)
-    // alternatively we can override the Element::updateLocalNumbering
-    if ( d->dofManLabelMap.find(globalNumber) == d->dofManLabelMap.end() ) {
-        // label does not exist
-        d->dofManLabelMap[globalNumber] = number;
-    } else {
-        OOFEM_ERROR("Calculated index for DOF manager already exists (nDofman+1=%d)", number);
-    }
-#endif
-
     return number;
 }
-
-#if 0 // #ifndef RBSM_PROPERTY_LABEL_MAPS
-// override local numbering i.e. label maps are not properties of domain
-void RBSMTetra::updateLocalNumbering(EntityRenumberingFunctor &f)
-{
-    // Temporary fix:
-    // Replicate EntityRenumberingFunctor behaviour using
-    // domain->mDofManPlaceInArray instead of dofmanMap
-    for ( auto &dnum : dofManArray ) {
-        std :: map< int, int > :: const_iterator it;
-        dnum = this->giveDomain()->giveDofManPlaceInArray(dnum);
-    }
-    return;
-}
-#endif
 
 int RBSMTetra::nextDofmanagerGlobalNumber()
 // finds the next available DOF manager's global number
