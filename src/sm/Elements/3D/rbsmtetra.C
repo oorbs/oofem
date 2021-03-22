@@ -46,6 +46,7 @@
 #include "classfactory.h"
 
 #include "rigidarmnode.h"
+#include "sm/Elements/Beams/beam3d.h"
 
 #ifdef __OOFEG
  #include "oofeggraphiccontext.h"
@@ -62,6 +63,7 @@ REGISTER_Element(RBSMTetra);
 FEI3dTetLin RBSMTetra::interpolation;
 std::map<int, std::set<int> > RBSMTetra::clonesOfGeoNode;
 std::map<int, std::set<int> > RBSMTetra::cellElementsOfGeoNode;
+std::map<std::vector<int>, std::set<int> > RBSMTetra::cellElementsOfFacets;
 
 // S: todo: update or confirm
 RBSMTetra :: RBSMTetra(int n, Domain *aDomain) :
@@ -84,9 +86,8 @@ void RBSMTetra::initializeFrom( InputRecord &ir )
 {
     numberOfGaussPoints = 1;
     numberOfCornerNodes = 4;
+    int numberOfFacets  = 4;
 
-    // A safer option to initialize the RBSM Tetra is to
-    // make a dummy input record after cloning corner nodes.
     // currently we first initialize the element then clone
     // the corner nodes.
     Structural3DElement::initializeFrom( ir );
@@ -96,6 +97,33 @@ void RBSMTetra::initializeFrom( InputRecord &ir )
 
     RBSMTetra::updateClonesOfGeoNode();
     RBSMTetra::updateCellElementsOfGeoNode();
+
+    std::map<int, IntArray> existingSisters =
+        RBSMTetra::updateCellElementsOfFacets();
+
+    //@todo: move to post-initialization, remove override RBSMTetra::setCrossSection
+    springsBeams.resize( numberOfFacets );
+    // make springs beams
+    int number, startPoint, endPoint;
+    endPoint = centerDofmanager;
+    for ( auto const facetExistingSisters : existingSisters ) {
+        int count = 0;
+        for ( int neesan : facetExistingSisters.second ) {
+            count++;
+            if ( count > 1 ) {
+                // currently only 1 sister element is accepted for each facet
+                OOFEM_ERROR( "There are more than 1 adjacent element for elem %d",
+                    this->giveGlobalNumber() );
+            }
+            if ( RBSMTetra *e = //> make sure sister element is an RBSM element
+                dynamic_cast<RBSMTetra *>( domain->giveElement( neesan ) ) ) {
+                startPoint = e->giveCellDofmanagerNumber();
+                number     = nextElementGlobalNumber();
+                number     = RBSMTetra::makeSpringsBeam( number, startPoint, endPoint );
+                springsBeams.at( facetExistingSisters.first ).insertSortedOnce( number );
+            }
+        }
+    }
 }
 
 
@@ -106,6 +134,19 @@ void RBSMTetra::setGeoNodesFromIr( InputRecord &ir )
 
     // Obtain the node IDs of the rigid body cell
     IR_GIVE_FIELD(ir, geoNodes, _IFT_Element_nodes);
+}
+
+void RBSMTetra::setCrossSection( int csIndx )
+{
+    Structural3DElement::setCrossSection(csIndx);
+    //@todo: this may not be needed if making beams in post-initialization
+    for ( IntArray ia : this->springsBeams ) {
+        for ( int i : ia ) {
+            if ( i > 0 ) {
+                domain->elementList[i - 1]->setCrossSection( csIndx );
+            }
+        }
+    }
 }
 
 void RBSMTetra::makeDofmanagers( InputRecord &ir )
@@ -131,7 +172,7 @@ void RBSMTetra::makeDofmanagers( InputRecord &ir )
     }
 }
 
-void RBSMTetra::updateClonesOfGeoNode()
+void RBSMTetra::updateClonesOfGeoNode(bool dofManArrayIsGlobal)
 // adds the cloned geometry nodes of this element to 'clonesOfGeoNode' map
 {
     int size = this->dofManArray.giveSize();
@@ -145,8 +186,50 @@ void RBSMTetra::updateClonesOfGeoNode()
     for ( int i = 0; i < size; ++i ) {
         int geo   = this->geoNodes( i );
         int clone = this->dofManArray( i );
+        // at early stage domain has not converted the global numbers to local
+        clone = dofManArrayIsGlobal ? domain->giveDofManPlaceInArray(clone) : clone;
         RBSMTetra::clonesOfGeoNode[geo].insert( clone );
     }
+}
+
+std::map<int, IntArray> RBSMTetra::updateCellElementsOfFacets()
+{
+    int numberOfFacets = 4;
+    std::list<std::vector<int>> facets;
+    std::map<int, IntArray> existingSisters;
+    this->facetArray.resize(numberOfFacets);
+
+    // make facets of the current element
+    facets.push_back(
+        { this->geoNodes( 0 ), this->geoNodes( 1 ), this->geoNodes( 2 ) } );
+    facets.push_back(
+        { this->geoNodes( 0 ), this->geoNodes( 1 ), this->geoNodes( 3 ) } );
+    facets.push_back(
+        { this->geoNodes( 0 ), this->geoNodes( 2 ), this->geoNodes( 3 ) } );
+    facets.push_back(
+        { this->geoNodes( 1 ), this->geoNodes( 2 ), this->geoNodes( 3 ) } );
+
+    int index = 0;
+    for ( std::vector<int> facet : facets ) {
+        index++;
+
+        // sort facets vertices
+        std::sort( facet.begin(), facet.end() );
+
+        // search for facet
+        std::map<std::vector<int>, std::set<int>>::iterator
+            it = cellElementsOfFacets.find( facet );
+        if ( it == cellElementsOfFacets.end() ) {
+            // facet is new
+            cellElementsOfFacets[facet].insert( number );
+        } else {
+            for ( int neesan : it->second ) {
+                existingSisters[index].insertSortedOnce(neesan);
+            }
+            it->second.insert( number );
+        }
+    }
+    return existingSisters;
 }
 
 void RBSMTetra::updateCellElementsOfGeoNode()
@@ -180,6 +263,7 @@ int RBSMTetra::makeDofmanager( InputRecord &dummyIr, int globalNumber )
 // Makes central DOF manager and returns given number
 {
     int number, nDofman = 0;
+    std::string nodeType;
     Domain *d = this->giveDomain();
     std::vector<OOFEMTXTInputRecord> rbsmInputRecords;
 
@@ -188,15 +272,16 @@ int RBSMTetra::makeDofmanager( InputRecord &dummyIr, int globalNumber )
         OOFEM_ERROR("Domain returned invalid DOF managers count: %d\n", globalNumber );
     }
 
+    IR_GIVE_RECORD_KEYWORD_FIELD(dummyIr, nodeType, number);
     // number for central DOF manager of the rigid body
     number = nDofman + 1;
 
-    std::unique_ptr<DofManager> dmanCenter( classFactory.createDofManager( _IFT_Node_Name, number, d ) );
-    if ( !dmanCenter ) {
+    std::unique_ptr<DofManager> newDman( classFactory.createDofManager( nodeType.c_str(), number, d ) );
+    if ( !newDman ) {
         OOFEM_ERROR("Couldn't create node of type: %s\n", _IFT_Node_Name);
     }
 
-    dmanCenter->initializeFrom(dummyIr);
+    newDman->initializeFrom(dummyIr);
 
     // make sure that global number is unique
     auto hasSameNum{
@@ -208,13 +293,20 @@ int RBSMTetra::makeDofmanager( InputRecord &dummyIr, int globalNumber )
         OOFEM_ERROR( "Failed to create DOF manager; the global number '%d' is already taken", globalNumber );
     }
 
-    dmanCenter->setGlobalNumber( globalNumber );
+    newDman->setGlobalNumber( globalNumber );
 
     d->resizeDofManagers( nDofman + 1 );
 
-    d->setDofManager(number, std::move(dmanCenter));
+    d->setDofManager(number, std::move( newDman ));
 
-    return number;
+    /* OPTION 1
+     * return the local number so **updateClonesOfGeoNode()** does not need to convert it
+     * return number;
+     * OPTION 2
+     * return global number for consistency with dof mangers
+     * return globalNumber;
+     */
+    return globalNumber;
 }
 
 int RBSMTetra::nextDofmanagerGlobalNumber()
@@ -225,7 +317,7 @@ int RBSMTetra::nextDofmanagerGlobalNumber()
 
     nDofman = d->dofManagerList.size();
     if ( nDofman <= 0 ) {
-        OOFEM_ERROR("Domain returned invalid DOF managers count: %d\n", num);
+        OOFEM_ERROR("Domain returned invalid DOF manager count: %d\n", num);
     }
 
     // first try for the next DOF manager's global number
@@ -252,6 +344,41 @@ int RBSMTetra::nextDofmanagerGlobalNumber()
     return num;
 }
 
+int RBSMTetra::nextElementGlobalNumber()
+// finds the next available element's global number
+{
+    int globalNumber, count, nElem = 0;
+    Domain *d = this->giveDomain();
+
+    nElem = d->giveNumberOfElements();
+    if ( nElem <= 0 ) {
+        OOFEM_ERROR("Domain returned invalid element count: %d\n", globalNumber );
+    }
+
+    // first try for the next DOF manager's global number
+    globalNumber = nElem + 1;
+
+    // make sure that global number is unique
+    count = 0;
+    auto hasSameNum{
+        [&globalNumber]( std::unique_ptr<oofem::Element> &elem )
+        { return elem ? elem->giveGlobalNumber() == globalNumber : false; }
+    };
+    auto it = std::find_if( d->elementList.begin(), d->elementList.end(), hasSameNum);
+    while (it!=d->elementList.end()){
+        // try to resolve duplicated number
+        globalNumber++;
+        count++;
+        it = std::find_if(d->elementList.begin(), d->elementList.end(), hasSameNum);
+        if (count > nElem ){
+            // prevent infinite loop
+            OOFEM_ERROR( "Failed to find a unique id to make 'RBSM Tetra element'" );
+        }
+    }
+
+    return globalNumber;
+}
+
 
 std::vector<FloatArray> RBSMTetra::coordsFromIr( InputRecord &ir )
 // Obtains the coordinates of rigid body cell
@@ -266,12 +393,12 @@ std::vector<FloatArray> RBSMTetra::coordsFromIr( InputRecord &ir )
     IR_GIVE_FIELD(ir, cornerNodes, _IFT_Element_nodes);
     // Obtain node coordinates
     for ( int i = 0; i < numberOfCornerNodes; ++i ) {
-        nodeCoords.at(i+1) =
-            this->giveDomain()->giveDofManager(cornerNodes(i))->giveCoordinates();
+        cornerNodes(i) = domain->giveDofManPlaceInArray(cornerNodes(i));
+        nodeCoords.at(i+1) = domain->giveDofManager(cornerNodes(i))->giveCoordinates();
         nodeCoords.at(0).add( nodeCoords.at(i+1));
     }
     // center node
-    nodeCoords.at( 0 ).times( 1 / numberOfCornerNodes );
+    nodeCoords.at( 0 ).times( 1. / (float)numberOfCornerNodes );
 
     return nodeCoords;
 }
@@ -303,8 +430,11 @@ void RBSMTetra::rbsmDummyIr(
 
     // corner (rigid arm) DOF man
     for ( int i = 1; i < numberOfCornerNodes + 1; ++i ) {
-        sprintf( buff, "%s %i   %s 3  %f %f %f   %s %i",
+        sprintf( buff,
             //  "RigidArmNode"  num  "Coords"   x   y   z "Master" id
+            "%s %i   %s 3  %f %f %f   %s %i  "
+            "dofidmask 6  1 2 3 4 5 6   "
+            "mastermask 6  1 1 1 1 1 1   doftype 6  2 2 2 2 2 2",
             _IFT_RigidArmNode_Name, 0, _IFT_Node_coords,
             nodeCoords.at( i ).at( 1 ),
             nodeCoords.at( i ).at( 2 ),
@@ -366,6 +496,68 @@ std::set<int> RBSMTetra::giveCellElementsOfGeoNode(int geoNode)
     return answer;
 }
 
+int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
+{
+    int number, nElements = 0;
+    Domain *d = this->giveDomain();
+    auto ELEM_TYPE = _IFT_Beam3d_Name;
+
+    nElements = d->giveNumberOfElements();
+    if ( nElements < 0 ) {
+        OOFEM_ERROR("Domain returned invalid Elements count: %d\n", globalNumber );
+    }
+
+    // number for central DOF manager of the rigid body
+    number = nElements + 1;
+
+    std :: unique_ptr< Element >
+    //std :: unique_ptr< Element >
+        element( classFactory.createElement(ELEM_TYPE, number, d) );
+    if ( !element ) {
+        OOFEM_ERROR("Couldn't create spring element of type: %s", ELEM_TYPE);
+    }
+
+    // instantiate beam element
+    {
+        // Element
+        // should develop for the case materials are different (ITZ)
+        element->setMaterial(material);
+        element->setCrossSection(crossSection);
+        element->setDofManagers({dmanA, dmanB});
+        //elem->setBodyLoads({});
+        //elem->giveBoundaryLoadArray()->clear();
+        //elem->elemLocalCS.clear();
+        element->setActivityTimeFunctionNumber(0);
+        //elem->numberOfGaussPoints = 1;
+        //elem->partitions.clear();
+        //elem->numberOfGaussPoints = 1;
+
+        // Beam
+        //elem->referenceAngle = 0; // is already set to 0
+        // use condensed DOF for failed moment springs?
+        //dofsToCondense = ...;
+    }
+
+
+    // make sure that global number is unique
+    auto hasSameNum{
+        [&globalNumber]( std::unique_ptr<oofem::Element> &elem )
+        { return elem ? elem->giveGlobalNumber() == globalNumber : false; }
+    };
+    auto it = std::find_if( d->elementList.begin(), d->elementList.end(), hasSameNum);
+    if ( it != d->elementList.end() ) {
+        // the global ID already exists
+        OOFEM_ERROR( "Failed to create springs beam element; the global number '%d' is already taken", globalNumber );
+    }
+
+    element->setGlobalNumber( globalNumber );
+
+    d->resizeElements( nElements + 1 );
+
+    d->setElement(number, std::move(element));
+
+    return number;
+}
 
 // S: todo: update or confirm
 void RBSMTetra ::computeLumpedMassMatrix( FloatMatrix &answer, TimeStep *tStep )

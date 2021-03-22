@@ -73,16 +73,20 @@ public:
 protected:
     static FEI3dTetLin interpolation;
 
-    /// cloned nodes of each geometry node
+    /// map geometry (mesh) node number to cloned nodes local number
     static std::map<int, std::set<int>> clonesOfGeoNode;
-    /// cloned nodes of each geometry node
+    /// map geometry (mesh) node number to RBSM element local number
     static std::map<int, std::set<int>> cellElementsOfGeoNode;
+    /// map set of "facet nodes set" to "elements" local number
+    static std::map<std::vector<int>, std::set<int>> cellElementsOfFacets;
     /// number of vertices
     int numberOfCornerNodes; // make static constant
     /// global ID of rigid body cell central node
     int centerDofmanager;
-    /// mesh nodes defining corners of the rigid body
+    /// global number of mesh nodes defining corners of the rigid body
     IntArray geoNodes;
+    /// global number of the springs beam elements
+    std::vector<IntArray> springsBeams;
     /// facets indices of rigid body
     IntArray facetArray;
 
@@ -105,6 +109,9 @@ public:
     int giveCellDofmanagerNumber() { return centerDofmanager; }
 
     void initializeFrom(InputRecord &ir) override;
+
+    void setCrossSection(int csIndx) override;
+
     void computeLumpedMassMatrix(FloatMatrix &answer, TimeStep *tStep) override;
     int giveNumberOfIPForMassMtrxIntegration() override { return 4; }
     Interface *giveInterface(InterfaceType it) override;
@@ -149,15 +156,15 @@ public:
     void makeDofmanagers( InputRecord &ir );
     std::vector<FloatArray> coordsFromIr( InputRecord &ir );
     /**
-     * Makes a DOF manager and returns given component number
-     * @returns component number which is based on an arithmetic
+     * Makes a DOF manager and returns assigned local number
+     * @returns local number which is based on an arithmetic
      * progression starting from 1 and is assigned automatically.
      */
     int makeDofmanager( InputRecord &dummyIr );
     /**
-     * Makes a DOF manager and returns given component number
+     * Makes a DOF manager and returns assigned local number
      * @param globalNumber represents the number inside an input file.
-     * @returns component number which is based on an arithmetic
+     * @returns local number which is based on an arithmetic
      * progression starting from 1 and is assigned automatically.
      */
     int makeDofmanager( InputRecord &dummyIr, int globalNumber );
@@ -166,15 +173,31 @@ public:
      * global number represents the number given inside an input file.
      */
     int nextDofmanagerGlobalNumber();
+    /**
+     * @returns next available global number for a new element,
+     * global number represents the number given inside an input file.
+     */
+    int nextElementGlobalNumber();
+
+    /**
+     * Makes springs beam element and returns assigned local number
+     * @returns local number which is based on an arithmetic
+     * progression starting from 1 and is assigned automatically.
+     */
+    int makeSpringsBeam( int globalNumber, int dmanA, int dmanB );
+
 
 protected:
     void rbsmDummyIr( InputRecord &irIn, std::vector<OOFEMTXTInputRecord> &irOut, int master );
-    /// set the geometry nodes label numbers from input record
+    /// set the geometry nodes numbers from input file
     void setGeoNodesFromIr( InputRecord &ir );
     /// update the geometry nodes to clone nodes map
-    void updateClonesOfGeoNode();
+    ///@param dofManArrayIsGlobal if true, means clone numbers should be converted to local
+    void updateClonesOfGeoNode(bool dofManArrayIsGlobal = true);
     /// update the geometry nodes to center nodes map
     void updateCellElementsOfGeoNode();
+    /// update the facet to element map
+    std::map<int, IntArray> updateCellElementsOfFacets();
 };
 } // end namespace oofem
 #endif // rbsmtetra_h
