@@ -63,7 +63,7 @@ REGISTER_Element(RBSMTetra);
 FEI3dTetLin RBSMTetra::interpolation;
 std::map<int, std::set<int> > RBSMTetra::clonesOfGeoNode;
 std::map<int, std::set<int> > RBSMTetra::cellElementsOfGeoNode;
-std::map<std::vector<int>, std::set<int> > RBSMTetra::cellElementsOfFacets;
+std::map<std::vector<int>, std::set<int> > RBSMTetra::mapFacetElement;
 
 // S: todo: update or confirm
 RBSMTetra :: RBSMTetra(int n, Domain *aDomain) :
@@ -101,9 +101,9 @@ void RBSMTetra::initializeFrom( InputRecord &ir )
     std::map<int, IntArray> existingSisters =
         RBSMTetra::updateCellElementsOfFacets();
 
+    // make springs beams
     //@todo: move to post-initialization, remove override RBSMTetra::setCrossSection
     springsBeams.resize( numberOfFacets );
-    // make springs beams
     int number, startPoint, endPoint;
     endPoint = centerDofmanager;
     for ( auto const facetExistingSisters : existingSisters ) {
@@ -126,6 +126,12 @@ void RBSMTetra::initializeFrom( InputRecord &ir )
     }
 }
 
+void RBSMTetra::postInitialize()
+{
+    Element::postInitialize();
+
+    //this->makeSpringsBeamCrossSection(1);
+}
 
 void RBSMTetra::setGeoNodesFromIr( InputRecord &ir )
 // Obtains the geometry nodes of rigid body cell from the input record
@@ -216,13 +222,18 @@ std::map<int, IntArray> RBSMTetra::updateCellElementsOfFacets()
         // sort facets vertices
         std::sort( facet.begin(), facet.end() );
 
+        // keep a copy inside element
+        // @todo: can we instead use iterator of mapFacetElement?
+        this->facetArray[index] = facet;
+
         // search for facet
         std::map<std::vector<int>, std::set<int>>::iterator
-            it = cellElementsOfFacets.find( facet );
-        if ( it == cellElementsOfFacets.end() ) {
+            it = mapFacetElement.find( facet );
+        if ( it == mapFacetElement.end() ) {
             // facet is new
-            cellElementsOfFacets[facet].insert( number );
+            mapFacetElement[facet].insert( number );
         } else {
+            // facet already exists
             for ( int neesan : it->second ) {
                 existingSisters[index].insertSortedOnce(neesan);
             }
@@ -386,8 +397,8 @@ std::vector<FloatArray> RBSMTetra::coordsFromIr( InputRecord &ir )
     IntArray cornerNodes;
     std::vector<FloatArray> nodeCoords;
 
-    nodeCoords.resize(numberOfCornerNodes+1);
-    nodeCoords.at(0).zero();
+    nodeCoords.resize( numberOfCornerNodes + 1 );
+    nodeCoords.at( 0 ).zero();
 
     // Obtain the node IDs of the rigid body cell
     IR_GIVE_FIELD(ir, cornerNodes, _IFT_Element_nodes);
@@ -426,6 +437,7 @@ void RBSMTetra::rbsmDummyIr(
         nodeCoords.at( 0 ).at( 3 ) );
     irString = buff;
     // central DOF manager dummy input record
+    irOut.at( 0 ) = OOFEMTXTInputRecord( 0, irString );xxx
     irOut.at( 0 ) = OOFEMTXTInputRecord( 0, irString );
 
     // corner (rigid arm) DOF man
@@ -444,6 +456,26 @@ void RBSMTetra::rbsmDummyIr(
         // rigid arm dummy input records
         irOut.at( i ) = OOFEMTXTInputRecord( 0, irString );
     }
+}
+
+double RBSMTetra::giveAreaOfFacet( int nFacet )
+{
+    auto facet = facetArray[nFacet];
+    int A = facet[1];
+    int B = facet[2];
+    int C = facet[3];
+
+    // A = 0.5 * |AB x AC|
+    FloatArray AB =
+        domain->giveDofManager( B )->giveCoordinates()
+        - domain->giveDofManager( A )->giveCoordinates();
+    FloatArray AC =
+        domain->giveDofManager( C )->giveCoordinates()
+        - domain->giveDofManager( A )->giveCoordinates();
+
+    FloatArray ABxAC;
+    ABxAC.beVectorProductOf( AB, AC );
+    return 0.5 * ABxAC.computeNorm();
 }
 
 
@@ -557,6 +589,14 @@ int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
     d->setElement(number, std::move(element));
 
     return number;
+}
+
+int RBSMTetra::makeSpringsBeamCrossSection( int nFacet )
+{
+    std :: unique_ptr< CrossSection >crossSection( this->giveCrossSection() );
+    if (crossSection->giveClassName()){}
+    //if ( dynamic_cast<FiberedCrossSection *>( crossSection ) ){}
+    return 1;
 }
 
 // S: todo: update or confirm

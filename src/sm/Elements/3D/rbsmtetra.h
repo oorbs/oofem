@@ -78,7 +78,7 @@ protected:
     /// map geometry (mesh) node number to RBSM element local number
     static std::map<int, std::set<int>> cellElementsOfGeoNode;
     /// map set of "facet nodes set" to "elements" local number
-    static std::map<std::vector<int>, std::set<int>> cellElementsOfFacets;
+    static std::map<std::vector<int>, std::set<int>> mapFacetElement;
     /// number of vertices
     int numberOfCornerNodes; // make static constant
     /// global ID of rigid body cell central node
@@ -88,10 +88,10 @@ protected:
     /// global number of the springs beam elements
     std::vector<IntArray> springsBeams;
     /// facets indices of rigid body
-    IntArray facetArray;
+    std::vector<std::vector<int>> facetArray;
 
 
-// .: methods :.
+    // .: methods :.
 public:
     RBSMTetra(int n, Domain * d);
     virtual ~RBSMTetra() { }
@@ -109,6 +109,8 @@ public:
     int giveCellDofmanagerNumber() { return centerDofmanager; }
 
     void initializeFrom(InputRecord &ir) override;
+
+    void postInitialize() override;
 
     void setCrossSection(int csIndx) override;
 
@@ -129,6 +131,12 @@ public:
 */
 
     double giveRelativeSelfComputationalCost() override { return 2.15; }
+
+    /**
+     * calculates the area of facet
+     * @param nFacet the target facet number
+     */
+    double giveAreaOfFacet(int nFacet);
 
 /*
     void NodalAveragingRecoveryMI_computeNodalValue(FloatArray &answer, int node,
@@ -152,9 +160,19 @@ public:
                                                           HuertaErrorEstimator :: AnalysisMode aMode) override;
     void HuertaErrorEstimatorI_computeNmatrixAt(GaussPoint *gp, FloatMatrix &answer) override;
 */
-    /// Make central and cloned nodes for rigid body
+    /**
+     * Make central and cloned nodes for rigid body
+     */
     void makeDofmanagers( InputRecord &ir );
+
+    /**
+     * Obtains the coordinates of rigid body cell
+     * @param ir input record
+     * @return array containing coordinates of the central node [0]
+     * and corner nodes [1-4] of the rigid body cell
+     */
     std::vector<FloatArray> coordsFromIr( InputRecord &ir );
+
     /**
      * Makes a DOF manager and returns assigned local number
      * @returns local number which is based on an arithmetic
@@ -185,6 +203,14 @@ public:
      * progression starting from 1 and is assigned automatically.
      */
     int makeSpringsBeam( int globalNumber, int dmanA, int dmanB );
+
+    /**
+     * Makes springs beam element cross-section and returns assigned number
+     * @param globalNumber
+     * @param nFacet the number of facet whose cross-section will be made
+     * @return assigned number to the new cross-section
+     */
+    int makeSpringsBeamCrossSection( int nFacet );
 
 
 protected:
