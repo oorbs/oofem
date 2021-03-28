@@ -201,6 +201,7 @@ void RBSMTetra::updateClonesOfGeoNode(bool dofManArrayIsGlobal)
 std::map<int, IntArray> RBSMTetra::updateCellElementsOfFacets()
 {
     int numberOfFacets = 4;
+    int numberOfFacetVertices = 3;
     std::list<std::vector<int>> facets;
     std::map<int, IntArray> existingSisters;
     this->facetArray.resize(numberOfFacets);
@@ -223,8 +224,11 @@ std::map<int, IntArray> RBSMTetra::updateCellElementsOfFacets()
         std::sort( facet.begin(), facet.end() );
 
         // keep a copy inside element
-        // @todo: can we instead use iterator of mapFacetElement?
-        this->facetArray[index] = facet;
+        // @todo: can facetArray be iterators of mapFacetElement to save memory?
+        this->facetArray.resize(numberOfFacetVertices);
+        for ( int i = 0; i < numberOfFacetVertices; ++i ) {
+            this->facetArray[i] = facet[i];
+        }
 
         // search for facet
         std::map<std::vector<int>, std::set<int>>::iterator
@@ -437,7 +441,6 @@ void RBSMTetra::rbsmDummyIr(
         nodeCoords.at( 0 ).at( 3 ) );
     irString = buff;
     // central DOF manager dummy input record
-    irOut.at( 0 ) = OOFEMTXTInputRecord( 0, irString );xxx
     irOut.at( 0 ) = OOFEMTXTInputRecord( 0, irString );
 
     // corner (rigid arm) DOF man

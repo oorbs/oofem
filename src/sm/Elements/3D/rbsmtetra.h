@@ -88,7 +88,7 @@ protected:
     /// global number of the springs beam elements
     std::vector<IntArray> springsBeams;
     /// facets indices of rigid body
-    std::vector<std::vector<int>> facetArray;
+    std::vector<IntArray> facetArray;
 
 
     // .: methods :.
