@@ -108,17 +108,31 @@ public:
     /// @returns index number of rigid body cell central node
     int giveCellDofmanagerNumber() { return centerDofmanager; }
 
+    /**
+     * calculates distance of the fiber zone centroid from facet centroid
+     * @param nFacet the number of targeted facet of the element
+     * @return distance coordinates for all fiber zones in a vector
+     */
+    std::vector<FloatArray> giveFiberZonesOffsetsOfFacet( int nFacet );
+
     void initializeFrom(InputRecord &ir) override;
 
     void postInitialize() override;
 
+    void updateLocalNumbering(EntityRenumberingFunctor &f) override;
+
     void setCrossSection(int csIndx) override;
 
+
     void computeLumpedMassMatrix(FloatMatrix &answer, TimeStep *tStep) override;
+
     int giveNumberOfIPForMassMtrxIntegration() override { return 4; }
+
     Interface *giveInterface(InterfaceType it) override;
+
     // definition & identification
     const char *giveInputRecordName() const override { return _IFT_RBSMTetra_Name; }
+
     const char *giveClassName() const override { return "RBSMTetra"; }
 
 /*
@@ -160,6 +174,7 @@ public:
                                                           HuertaErrorEstimator :: AnalysisMode aMode) override;
     void HuertaErrorEstimatorI_computeNmatrixAt(GaussPoint *gp, FloatMatrix &answer) override;
 */
+
     /**
      * Make central and cloned nodes for rigid body
      */
@@ -223,6 +238,7 @@ protected:
     /// update the geometry nodes to center nodes map
     void updateCellElementsOfGeoNode();
     /// update the facet to element map
+    ///@return map of existing sister element for each facet
     std::map<int, IntArray> updateCellElementsOfFacets();
 };
 } // end namespace oofem

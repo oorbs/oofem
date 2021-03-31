@@ -66,7 +66,7 @@ std::map<int, std::set<int> > RBSMTetra::cellElementsOfGeoNode;
 std::map<std::vector<int>, std::set<int> > RBSMTetra::mapFacetElement;
 
 // S: todo: update or confirm
-RBSMTetra :: RBSMTetra(int n, Domain *aDomain) :
+RBSMTetra::RBSMTetra(int n, Domain *aDomain) :
     Structural3DElement(n, aDomain)
     /*,
         ZZNodalRecoveryModelInterface(this),
@@ -77,7 +77,7 @@ RBSMTetra :: RBSMTetra(int n, Domain *aDomain) :
         HuertaErrorEstimatorInterface()
     */
 {
-    numberOfDofMans  = 4;
+    numberOfDofMans     = 4;
     numberOfGaussPoints = 1;
 }
 
@@ -120,7 +120,7 @@ void RBSMTetra::initializeFrom( InputRecord &ir )
                 startPoint = e->giveCellDofmanagerNumber();
                 number     = nextElementGlobalNumber();
                 number     = RBSMTetra::makeSpringsBeam( number, startPoint, endPoint );
-                springsBeams.at( facetExistingSisters.first ).insertSortedOnce( number );
+                springsBeams[facetExistingSisters.first - 1].insertSortedOnce( number );
             }
         }
     }
@@ -130,7 +130,20 @@ void RBSMTetra::postInitialize()
 {
     Element::postInitialize();
 
-    //this->makeSpringsBeamCrossSection(1);
+    if ( number == 2 ) {
+        //makeSpringsBeamCrossSection(1);
+    }
+}
+
+void RBSMTetra ::updateLocalNumbering( EntityRenumberingFunctor &f )
+{
+    Element::updateLocalNumbering( f );
+    // convert facet dof managers numbers to local
+    for ( auto &fNum : facetArray ) {
+        for ( int &fdNum : fNum ) {
+            fdNum = f( fdNum, ERS_DofManager );
+        }
+    }
 }
 
 void RBSMTetra::setGeoNodesFromIr( InputRecord &ir )
@@ -218,21 +231,19 @@ std::map<int, IntArray> RBSMTetra::updateCellElementsOfFacets()
 
     int index = 0;
     for ( std::vector<int> facet : facets ) {
-        index++;
-
         // sort facets vertices
         std::sort( facet.begin(), facet.end() );
 
         // keep a copy inside element
         // @todo: can facetArray be iterators of mapFacetElement to save memory?
-        this->facetArray.resize(numberOfFacetVertices);
+        this->facetArray[index].resize( numberOfFacetVertices );
         for ( int i = 0; i < numberOfFacetVertices; ++i ) {
-            this->facetArray[i] = facet[i];
+            this->facetArray[index][i] = facet[i];
         }
 
         // search for facet
-        std::map<std::vector<int>, std::set<int>>::iterator
-            it = mapFacetElement.find( facet );
+        index++;
+        std::map<std::vector<int>, std::set<int>>::iterator it = mapFacetElement.find( facet );
         if ( it == mapFacetElement.end() ) {
             // facet is new
             mapFacetElement[facet].insert( number );
@@ -413,7 +424,7 @@ std::vector<FloatArray> RBSMTetra::coordsFromIr( InputRecord &ir )
         nodeCoords.at(0).add( nodeCoords.at(i+1));
     }
     // center node
-    nodeCoords.at( 0 ).times( 1. / (float)numberOfCornerNodes );
+    nodeCoords.at( 0 ).times( 1. / (double)numberOfCornerNodes );
 
     return nodeCoords;
 }
@@ -464,9 +475,9 @@ void RBSMTetra::rbsmDummyIr(
 double RBSMTetra::giveAreaOfFacet( int nFacet )
 {
     auto facet = facetArray[nFacet];
-    int A = facet[1];
-    int B = facet[2];
-    int C = facet[3];
+    int A      = facet.at( 1 );
+    int B      = facet.at( 2 );
+    int C      = facet.at( 3 );
 
     // A = 0.5 * |AB x AC|
     FloatArray AB =
@@ -479,6 +490,42 @@ double RBSMTetra::giveAreaOfFacet( int nFacet )
     FloatArray ABxAC;
     ABxAC.beVectorProductOf( AB, AC );
     return 0.5 * ABxAC.computeNorm();
+}
+
+std::vector<FloatArray> RBSMTetra::giveFiberZonesOffsetsOfFacet( int nFacet )
+{
+    auto facet = facetArray[nFacet - 1];
+    int numberOfRidgesAndVertices = 3;
+    std::vector<FloatArray> fiberZones( numberOfRidgesAndVertices );
+    FloatArray coordsFacetCentroid( numberOfRidgesAndVertices );
+
+    // calculate facet centroid coordinates
+    coordsFacetCentroid.zero();
+    for ( int i = 0; i < numberOfRidgesAndVertices; ++i ) {
+        coordsFacetCentroid.add( domain->giveDofManager( facet[i] )->giveCoordinates() );
+    }
+    coordsFacetCentroid.times( 1. / (double)numberOfRidgesAndVertices );
+
+    // calculate fiber coordinates
+    for ( int i = 0; i < numberOfRidgesAndVertices; ++i ) {
+        fiberZones[i].resize( numberOfRidgesAndVertices );
+        fiberZones[i].zero();
+
+        // add coordinates of nodes of the ridge
+        fiberZones[i].add( domain->giveDofManager( facet[i % 3] )->giveCoordinates() );
+        fiberZones[i].add( domain->giveDofManager( facet[( i + 1 ) % 3] )->giveCoordinates() );
+
+        // add coordinates of the centroid of the ridge
+        fiberZones[i].add( coordsFacetCentroid );
+
+        // calculate average to obtain centroid of the fiber zone
+        fiberZones[i].times( 1. / 3. );
+
+        // calculate the distance from facet centroid
+        fiberZones[i].add( -1., coordsFacetCentroid );
+    }
+
+    return fiberZones;
 }
 
 
@@ -582,7 +629,8 @@ int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
     auto it = std::find_if( d->elementList.begin(), d->elementList.end(), hasSameNum);
     if ( it != d->elementList.end() ) {
         // the global ID already exists
-        OOFEM_ERROR( "Failed to create springs beam element; the global number '%d' is already taken", globalNumber );
+        OOFEM_ERROR( "Failed to create springs beam element;"
+                     "the global number '%d' is already taken", globalNumber );
     }
 
     element->setGlobalNumber( globalNumber );
@@ -596,10 +644,61 @@ int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
 
 int RBSMTetra::makeSpringsBeamCrossSection( int nFacet )
 {
-    std :: unique_ptr< CrossSection >crossSection( this->giveCrossSection() );
-    if (crossSection->giveClassName()){}
-    //if ( dynamic_cast<FiberedCrossSection *>( crossSection ) ){}
-    return 1;
+    std::string csType = this->giveCrossSection()->giveClassName();
+    if ( csType == "FiberedCrossSection" ) {
+        int number             = domain->giveNumberOfCrossSectionModels() + 1;
+        int numberOfFibers     = 3;
+        double area            = this->giveAreaOfFacet( nFacet );
+        double fibArea         = area / (double)numberOfFibers;
+        double fibDim          = sqrt( fibArea );
+        double csDim           = sqrt( area );
+        FloatArray fiberThicks = { fibDim, fibDim, fibDim };
+        FloatArray fiberWidths = { fibDim, fibDim, fibDim };
+        double thick           = csDim;
+        double width           = csDim;
+        std::vector<FloatArray> fiberCoords = giveFiberZonesOffsetsOfFacet( nFacet );
+        FloatArray fiberYcoords, fiberZcoords;
+        FloatMatrix lcs;
+        IntArray fiberMaterials;
+
+        if ( springsBeams[nFacet - 1].isEmpty() ) {
+            OOFEM_ERROR( "Request to make cross-section for facet %d of element %d"
+                         "which does not have any springs beam element",
+                nFacet, this->number );
+        } else { // coordinates system of beams (in rare cases of having more than one sister on the same facet) on the same facet could be different, but the effect is negligible so I will use the first beam.
+            Element *b = domain->giveElement( springsBeams[nFacet - 1][0] );
+            b->giveLocalCoordinateSystem( lcs );
+        }
+
+        for ( FloatArray coords : fiberCoords ) {
+            coords.rotatedWith( lcs, 'n' );
+            fiberYcoords.append( coords.at( 2 ) );
+            fiberZcoords.append( coords.at( 3 ) );
+        }
+
+        std::unique_ptr<FiberedCrossSection> crossSection(
+            static_cast<FiberedCrossSection *>( this->giveCrossSection() ) );
+
+        // if material is provided for the element
+        if ( this->material ) {
+            // use provided element material for the fibers
+            fiberMaterials.resize( numberOfFibers );
+            for ( int &m : fiberMaterials ) {
+                m = this->material;
+            }
+        } else {
+            // do not modify cross section materials
+            fiberMaterials = {};
+        }
+
+        crossSection->initializeFrom( number, fiberMaterials, fiberThicks, fiberWidths,
+            numberOfFibers, thick, width, fiberYcoords, fiberZcoords );
+
+    } else {
+        OOFEM_ERROR( "%s does not support %s, please use fibered section",
+            this->giveClassName(), csType.c_str() )
+    }
+    return number;
 }
 
 // S: todo: update or confirm
