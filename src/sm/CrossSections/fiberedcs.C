@@ -451,6 +451,34 @@ FiberedCrossSection :: initializeFrom(InputRecord &ir)
     area = fiberThicks.dotProduct(fiberWidths);
 }
 
+void FiberedCrossSection ::initializeFrom( int number, IntArray fiberMaterials,
+    FloatArray fiberThicks, FloatArray fiberWidths, int numberOfFibers,
+    double thick, double width, FloatArray fiberYcoords, FloatArray fiberZcoords )
+{
+    this->number         = number ? number : this->number;
+    this->fiberMaterials = fiberMaterials.giveSize() ? fiberMaterials : this->fiberMaterials;
+    this->fiberThicks    = fiberThicks.giveSize() ? fiberThicks : this->fiberThicks;
+    this->fiberWidths    = fiberWidths.giveSize() ? fiberWidths : this->fiberWidths;
+    this->fiberYcoords   = fiberYcoords.giveSize() ? fiberYcoords : this->fiberYcoords;
+    this->fiberZcoords   = fiberZcoords.giveSize() ? fiberZcoords : this->fiberZcoords;
+    this->thick          = thick ? thick : this->thick;
+    this->width          = width ? width : this->width;
+
+    int num = this->fiberMaterials.giveSize();
+    if ( num != this->fiberThicks.giveSize()    ||
+         num != this->fiberWidths.giveSize()    ||
+         num != this->fiberYcoords.giveSize()   ||
+         num != this->fiberZcoords.giveSize() ) {
+        OOFEM_ERROR("%s Array size mismatch ", _IFT_FiberedCrossSection_fibermaterials);
+    }
+
+    if ( num <= 0 ) {
+        OOFEM_ERROR("%s number of fibers == 0 is not allowed", _IFT_FiberedCrossSection_fibermaterials);
+    }
+
+    this->area = fiberThicks.dotProduct(fiberWidths);
+}
+
 void FiberedCrossSection :: createMaterialStatus(GaussPoint &iGP)
 {
     for ( int i = 1; i <= fiberMaterials.giveSize(); i++ ) {
