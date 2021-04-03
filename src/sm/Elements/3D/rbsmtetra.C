@@ -631,12 +631,9 @@ int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
         OOFEM_ERROR( "Domain returned invalid Elements count: %d\n", globalNumber );
     }
 
-    // number for central DOF manager of the rigid body
     number = nElements + 1;
 
-    std ::unique_ptr<Element>
-        //std :: unique_ptr< Element >
-        element( classFactory.createElement( ELEM_TYPE, number, d ) );
+    std ::unique_ptr<Element> element( classFactory.createElement( ELEM_TYPE, number, d ) );
     if ( !element ) {
         OOFEM_ERROR( "Couldn't create spring element of type: %s", ELEM_TYPE );
     }
@@ -655,6 +652,7 @@ int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
         //elem->numberOfGaussPoints = 1;
         //elem->partitions.clear();
         //elem->numberOfGaussPoints = 1;
+        element->setParallelMode(Element_local);
 
         // Beam
         //elem->referenceAngle = 0; // is already set to 0
