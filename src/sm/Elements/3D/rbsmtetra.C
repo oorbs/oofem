@@ -49,26 +49,26 @@
 #include "sm/Elements/Beams/beam3d.h"
 
 #ifdef __OOFEG
- #include "oofeggraphiccontext.h"
- #include "oofegutils.h"
- #include "sm/Materials/rcm2.h"
+#include "oofeggraphiccontext.h"
+#include "oofegutils.h"
+#include "sm/Materials/rcm2.h"
 
- #include <Etetrawd.h>
+#include <Etetrawd.h>
 #endif
 
 namespace oofem {
-REGISTER_Element(RBSMTetra);
+REGISTER_Element( RBSMTetra );
 
 // S: todo: update or confirm
 FEI3dTetLin RBSMTetra::interpolation;
-std::map<int, std::set<int> > RBSMTetra::clonesOfGeoNode;
-std::map<int, std::set<int> > RBSMTetra::cellElementsOfGeoNode;
-std::map<std::vector<int>, std::set<int> > RBSMTetra::mapFacetElement;
+std::map<int, std::set<int>> RBSMTetra::clonesOfGeoNode;
+std::map<int, std::set<int>> RBSMTetra::cellElementsOfGeoNode;
+std::map<std::vector<int>, std::set<int>> RBSMTetra::mapFacetElement;
 
 // S: todo: update or confirm
-RBSMTetra::RBSMTetra(int n, Domain *aDomain) :
-    Structural3DElement(n, aDomain)
-    /*,
+RBSMTetra::RBSMTetra( int n, Domain *aDomain ) :
+    Structural3DElement( n, aDomain )
+/*,
         ZZNodalRecoveryModelInterface(this),
         NodalAveragingRecoveryModelInterface(),
         SPRNodalRecoveryModelInterface(),
@@ -130,8 +130,23 @@ void RBSMTetra::postInitialize()
 {
     Element::postInitialize();
 
-    if ( number == 2 ) {
-        //makeSpringsBeamCrossSection(1);
+    int numberOfFacets = 4;
+    for ( int i = 0; i < numberOfFacets; ++i ) {
+        if ( springsBeams[i].isEmpty() ) {
+            continue;
+        }
+
+        int cs = makeSpringsBeamCrossSection( i + 1 );
+        for ( int sb : springsBeams[i] ) {
+            Beam3d *springsBeam =
+                dynamic_cast<Beam3d *>( domain->giveElement( sb ) );
+            if ( !springsBeam ) {
+                OOFEM_ERROR(
+                    "face %d of element %d points to an invalid element for its springs",
+                    i + 1, number );
+            }
+            springsBeam->setCrossSection( cs );
+        }
     }
 }
 
@@ -146,18 +161,46 @@ void RBSMTetra ::updateLocalNumbering( EntityRenumberingFunctor &f )
     }
 }
 
+void RBSMTetra::giveCharacteristicMatrix( FloatMatrix &answer, CharType type, TimeStep *tStep )
+{
+    // rigid body does not have a characteristic matrix
+    answer.resize( 0, 0 );
+}
+
+void RBSMTetra::giveCharacteristicVector( FloatArray &answer, CharType type, ValueModeType mode, TimeStep *tStep )
+{
+    if ( type == ExternalForcesVector ) {
+        StructuralElement::giveCharacteristicVector( answer, type, mode, tStep );
+    } else if ( type == InternalForcesVector ) {
+        // rigid body does not have InternalForcesVector
+        answer.resize( 0 );
+    } else if ( ( type == LastEquilibratedInternalForcesVector ) && ( mode == VM_Total ) ) {
+        answer.resize( 0 );
+    } else {
+        OOFEM_ERROR( "RBSM Tetra does not support requested characteristic" )
+        //StructuralElement::giveCharacteristicVector( answer, type, mode, tStep );
+    }
+}
+/*
+bool RBSMTetra::isActivated(TimeStep *tStep)
+{
+    return false;
+}
+*/
+
+
 void RBSMTetra::setGeoNodesFromIr( InputRecord &ir )
 // Obtains the geometry nodes of rigid body cell from the input record
 {
-    RBSMTetra::geoNodes.resize(numberOfCornerNodes );
+    RBSMTetra::geoNodes.resize( numberOfCornerNodes );
 
     // Obtain the node IDs of the rigid body cell
-    IR_GIVE_FIELD(ir, geoNodes, _IFT_Element_nodes);
+    IR_GIVE_FIELD( ir, geoNodes, _IFT_Element_nodes );
 }
 
 void RBSMTetra::setCrossSection( int csIndx )
 {
-    Structural3DElement::setCrossSection(csIndx);
+    Structural3DElement::setCrossSection( csIndx );
     //@todo: this may not be needed if making beams in post-initialization
     for ( IntArray ia : this->springsBeams ) {
         for ( int i : ia ) {
@@ -177,7 +220,7 @@ void RBSMTetra::makeDofmanagers( InputRecord &ir )
     // find next available DOF manager's global number
     nextID = RBSMTetra::nextDofmanagerGlobalNumber();
     // create fake input records to make RBSM DOF managers
-    RBSMTetra::rbsmDummyIr(ir, rbsmInputRecords, nextID);
+    RBSMTetra::rbsmDummyIr( ir, rbsmInputRecords, nextID );
 
     // create central DOF manager (master)
     this->centerDofmanager =
@@ -191,7 +234,7 @@ void RBSMTetra::makeDofmanagers( InputRecord &ir )
     }
 }
 
-void RBSMTetra::updateClonesOfGeoNode(bool dofManArrayIsGlobal)
+void RBSMTetra::updateClonesOfGeoNode( bool dofManArrayIsGlobal )
 // adds the cloned geometry nodes of this element to 'clonesOfGeoNode' map
 {
     int size = this->dofManArray.giveSize();
@@ -206,18 +249,18 @@ void RBSMTetra::updateClonesOfGeoNode(bool dofManArrayIsGlobal)
         int geo   = this->geoNodes( i );
         int clone = this->dofManArray( i );
         // at early stage domain has not converted the global numbers to local
-        clone = dofManArrayIsGlobal ? domain->giveDofManPlaceInArray(clone) : clone;
+        clone = dofManArrayIsGlobal ? domain->giveDofManPlaceInArray( clone ) : clone;
         RBSMTetra::clonesOfGeoNode[geo].insert( clone );
     }
 }
 
 std::map<int, IntArray> RBSMTetra::updateCellElementsOfFacets()
 {
-    int numberOfFacets = 4;
+    int numberOfFacets        = 4;
     int numberOfFacetVertices = 3;
     std::list<std::vector<int>> facets;
     std::map<int, IntArray> existingSisters;
-    this->facetArray.resize(numberOfFacets);
+    this->facetArray.resize( numberOfFacets );
 
     // make facets of the current element
     facets.push_back(
@@ -250,7 +293,7 @@ std::map<int, IntArray> RBSMTetra::updateCellElementsOfFacets()
         } else {
             // facet already exists
             for ( int neesan : it->second ) {
-                existingSisters[index].insertSortedOnce(neesan);
+                existingSisters[index].insertSortedOnce( neesan );
             }
             it->second.insert( number );
         }
@@ -295,26 +338,26 @@ int RBSMTetra::makeDofmanager( InputRecord &dummyIr, int globalNumber )
 
     nDofman = d->dofManagerList.size();
     if ( nDofman <= 0 ) {
-        OOFEM_ERROR("Domain returned invalid DOF managers count: %d\n", globalNumber );
+        OOFEM_ERROR( "Domain returned invalid DOF managers count: %d\n", globalNumber );
     }
 
-    IR_GIVE_RECORD_KEYWORD_FIELD(dummyIr, nodeType, number);
+    IR_GIVE_RECORD_KEYWORD_FIELD( dummyIr, nodeType, number );
     // number for central DOF manager of the rigid body
     number = nDofman + 1;
 
     std::unique_ptr<DofManager> newDman( classFactory.createDofManager( nodeType.c_str(), number, d ) );
     if ( !newDman ) {
-        OOFEM_ERROR("Couldn't create node of type: %s\n", _IFT_Node_Name);
+        OOFEM_ERROR( "Couldn't create node of type: %s\n", _IFT_Node_Name );
     }
 
-    newDman->initializeFrom(dummyIr);
+    newDman->initializeFrom( dummyIr );
 
     // make sure that global number is unique
     auto hasSameNum{
         [&globalNumber]( std::unique_ptr<oofem::DofManager> &dman ) { return dman->giveGlobalNumber() == globalNumber; }
     };
-    auto it = std::find_if( d->dofManagerList.begin(), d->dofManagerList.end(), hasSameNum);
-    if (it!=d->dofManagerList.end()){
+    auto it = std::find_if( d->dofManagerList.begin(), d->dofManagerList.end(), hasSameNum );
+    if ( it != d->dofManagerList.end() ) {
         // the global ID already exists
         OOFEM_ERROR( "Failed to create DOF manager; the global number '%d' is already taken", globalNumber );
     }
@@ -323,7 +366,7 @@ int RBSMTetra::makeDofmanager( InputRecord &dummyIr, int globalNumber )
 
     d->resizeDofManagers( nDofman + 1 );
 
-    d->setDofManager(number, std::move( newDman ));
+    d->setDofManager( number, std::move( newDman ) );
 
     /* OPTION 1
      * return the local number so **updateClonesOfGeoNode()** does not need to convert it
@@ -343,7 +386,7 @@ int RBSMTetra::nextDofmanagerGlobalNumber()
 
     nDofman = d->dofManagerList.size();
     if ( nDofman <= 0 ) {
-        OOFEM_ERROR("Domain returned invalid DOF manager count: %d\n", num);
+        OOFEM_ERROR( "Domain returned invalid DOF manager count: %d\n", num );
     }
 
     // first try for the next DOF manager's global number
@@ -355,13 +398,13 @@ int RBSMTetra::nextDofmanagerGlobalNumber()
         //[num]( std :: unique_ptr< DofManager > dman ) { return dman->giveGlobalNumber() == num; }
         [&num]( std::unique_ptr<oofem::DofManager> &dman ) { return dman->giveGlobalNumber() == num; }
     };
-    auto it = std::find_if( d->dofManagerList.begin(), d->dofManagerList.end(), hasSameNum);
-    while (it!=d->dofManagerList.end()){
+    auto it = std::find_if( d->dofManagerList.begin(), d->dofManagerList.end(), hasSameNum );
+    while ( it != d->dofManagerList.end() ) {
         // try to resolve duplicated number
         num++;
         count++;
-        it = std::find_if(d->dofManagerList.begin(), d->dofManagerList.end(), hasSameNum);
-        if (count > nDofman ){
+        it = std::find_if( d->dofManagerList.begin(), d->dofManagerList.end(), hasSameNum );
+        if ( count > nDofman ) {
             // prevent infinite loop
             OOFEM_ERROR( "Failed to find a unique node id for 'RBSM Tetra element'" );
         }
@@ -378,7 +421,7 @@ int RBSMTetra::nextElementGlobalNumber()
 
     nElem = d->giveNumberOfElements();
     if ( nElem <= 0 ) {
-        OOFEM_ERROR("Domain returned invalid element count: %d\n", globalNumber );
+        OOFEM_ERROR( "Domain returned invalid element count: %d\n", globalNumber );
     }
 
     // first try for the next DOF manager's global number
@@ -387,16 +430,15 @@ int RBSMTetra::nextElementGlobalNumber()
     // make sure that global number is unique
     count = 0;
     auto hasSameNum{
-        [&globalNumber]( std::unique_ptr<oofem::Element> &elem )
-        { return elem ? elem->giveGlobalNumber() == globalNumber : false; }
+        [&globalNumber]( std::unique_ptr<oofem::Element> &elem ) { return elem ? elem->giveGlobalNumber() == globalNumber : false; }
     };
-    auto it = std::find_if( d->elementList.begin(), d->elementList.end(), hasSameNum);
-    while (it!=d->elementList.end()){
+    auto it = std::find_if( d->elementList.begin(), d->elementList.end(), hasSameNum );
+    while ( it != d->elementList.end() ) {
         // try to resolve duplicated number
         globalNumber++;
         count++;
-        it = std::find_if(d->elementList.begin(), d->elementList.end(), hasSameNum);
-        if (count > nElem ){
+        it = std::find_if( d->elementList.begin(), d->elementList.end(), hasSameNum );
+        if ( count > nElem ) {
             // prevent infinite loop
             OOFEM_ERROR( "Failed to find a unique id to make 'RBSM Tetra element'" );
         }
@@ -416,12 +458,12 @@ std::vector<FloatArray> RBSMTetra::coordsFromIr( InputRecord &ir )
     nodeCoords.at( 0 ).zero();
 
     // Obtain the node IDs of the rigid body cell
-    IR_GIVE_FIELD(ir, cornerNodes, _IFT_Element_nodes);
+    IR_GIVE_FIELD( ir, cornerNodes, _IFT_Element_nodes );
     // Obtain node coordinates
     for ( int i = 0; i < numberOfCornerNodes; ++i ) {
-        cornerNodes(i) = domain->giveDofManPlaceInArray(cornerNodes(i));
-        nodeCoords.at(i+1) = domain->giveDofManager(cornerNodes(i))->giveCoordinates();
-        nodeCoords.at(0).add( nodeCoords.at(i+1));
+        cornerNodes( i )       = domain->giveDofManPlaceInArray( cornerNodes( i ) );
+        nodeCoords.at( i + 1 ) = domain->giveDofManager( cornerNodes( i ) )->giveCoordinates();
+        nodeCoords.at( 0 ).add( nodeCoords.at( i + 1 ) );
     }
     // center node
     nodeCoords.at( 0 ).times( 1. / (double)numberOfCornerNodes );
@@ -474,7 +516,7 @@ void RBSMTetra::rbsmDummyIr(
 
 double RBSMTetra::giveAreaOfFacet( int nFacet )
 {
-    auto facet = facetArray[nFacet];
+    auto facet = facetArray[nFacet - 1];
     int A      = facet.at( 1 );
     int B      = facet.at( 2 );
     int C      = facet.at( 3 );
@@ -494,7 +536,7 @@ double RBSMTetra::giveAreaOfFacet( int nFacet )
 
 std::vector<FloatArray> RBSMTetra::giveFiberZonesOffsetsOfFacet( int nFacet )
 {
-    auto facet = facetArray[nFacet - 1];
+    auto facet                    = facetArray[nFacet - 1];
     int numberOfRidgesAndVertices = 3;
     std::vector<FloatArray> fiberZones( numberOfRidgesAndVertices );
     FloatArray coordsFacetCentroid( numberOfRidgesAndVertices );
@@ -555,24 +597,24 @@ Interface *RBSMTetra::giveInterface( InterfaceType interface )
 // S: todo: update or confirm
 FEInterpolation *RBSMTetra::giveInterpolation() const
 {
-    return & interpolation;
+    return &interpolation;
 }
 
-std::set<int> RBSMTetra::giveClonesOfGeoNode(int geoNode)
+std::set<int> RBSMTetra::giveClonesOfGeoNode( int geoNode )
 {
     std::set<int> answer;
-    std::map<int, std::set<int> >::iterator it = clonesOfGeoNode.find(geoNode);
-    if(it != clonesOfGeoNode.end()){
+    std::map<int, std::set<int>>::iterator it = clonesOfGeoNode.find( geoNode );
+    if ( it != clonesOfGeoNode.end() ) {
         answer = it->second;
     }
     return answer;
 }
 
-std::set<int> RBSMTetra::giveCellElementsOfGeoNode(int geoNode)
+std::set<int> RBSMTetra::giveCellElementsOfGeoNode( int geoNode )
 {
     std::set<int> answer;
-    std::map<int, std::set<int> >::iterator it = cellElementsOfGeoNode.find(geoNode);
-    if(it != cellElementsOfGeoNode.end()){
+    std::map<int, std::set<int>>::iterator it = cellElementsOfGeoNode.find( geoNode );
+    if ( it != cellElementsOfGeoNode.end() ) {
         answer = it->second;
     }
     return answer;
@@ -581,35 +623,35 @@ std::set<int> RBSMTetra::giveCellElementsOfGeoNode(int geoNode)
 int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
 {
     int number, nElements = 0;
-    Domain *d = this->giveDomain();
+    Domain *d      = this->giveDomain();
     auto ELEM_TYPE = _IFT_Beam3d_Name;
 
     nElements = d->giveNumberOfElements();
     if ( nElements < 0 ) {
-        OOFEM_ERROR("Domain returned invalid Elements count: %d\n", globalNumber );
+        OOFEM_ERROR( "Domain returned invalid Elements count: %d\n", globalNumber );
     }
 
     // number for central DOF manager of the rigid body
     number = nElements + 1;
 
-    std :: unique_ptr< Element >
-    //std :: unique_ptr< Element >
-        element( classFactory.createElement(ELEM_TYPE, number, d) );
+    std ::unique_ptr<Element>
+        //std :: unique_ptr< Element >
+        element( classFactory.createElement( ELEM_TYPE, number, d ) );
     if ( !element ) {
-        OOFEM_ERROR("Couldn't create spring element of type: %s", ELEM_TYPE);
+        OOFEM_ERROR( "Couldn't create spring element of type: %s", ELEM_TYPE );
     }
 
     // instantiate beam element
     {
         // Element
         // should develop for the case materials are different (ITZ)
-        element->setMaterial(material);
-        element->setCrossSection(crossSection);
-        element->setDofManagers({dmanA, dmanB});
+        element->setMaterial( material );
+        element->setCrossSection( crossSection );
+        element->setDofManagers( { dmanA, dmanB } );
         //elem->setBodyLoads({});
         //elem->giveBoundaryLoadArray()->clear();
         //elem->elemLocalCS.clear();
-        element->setActivityTimeFunctionNumber(0);
+        element->setActivityTimeFunctionNumber( 0 );
         //elem->numberOfGaussPoints = 1;
         //elem->partitions.clear();
         //elem->numberOfGaussPoints = 1;
@@ -623,21 +665,21 @@ int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
 
     // make sure that global number is unique
     auto hasSameNum{
-        [&globalNumber]( std::unique_ptr<oofem::Element> &elem )
-        { return elem ? elem->giveGlobalNumber() == globalNumber : false; }
+        [&globalNumber]( std::unique_ptr<oofem::Element> &elem ) { return elem ? elem->giveGlobalNumber() == globalNumber : false; }
     };
-    auto it = std::find_if( d->elementList.begin(), d->elementList.end(), hasSameNum);
+    auto it = std::find_if( d->elementList.begin(), d->elementList.end(), hasSameNum );
     if ( it != d->elementList.end() ) {
         // the global ID already exists
         OOFEM_ERROR( "Failed to create springs beam element;"
-                     "the global number '%d' is already taken", globalNumber );
+                     "the global number '%d' is already taken",
+            globalNumber );
     }
 
     element->setGlobalNumber( globalNumber );
 
     d->resizeElements( nElements + 1 );
 
-    d->setElement(number, std::move(element));
+    d->setElement( number, std::move( element ) );
 
     return number;
 }
@@ -646,20 +688,25 @@ int RBSMTetra::makeSpringsBeamCrossSection( int nFacet )
 {
     std::string csType = this->giveCrossSection()->giveClassName();
     if ( csType == "FiberedCrossSection" ) {
-        int number             = domain->giveNumberOfCrossSectionModels() + 1;
-        int numberOfFibers     = 3;
-        double area            = this->giveAreaOfFacet( nFacet );
-        double fibArea         = area / (double)numberOfFibers;
-        double fibDim          = sqrt( fibArea );
-        double csDim           = sqrt( area );
-        FloatArray fiberThicks = { fibDim, fibDim, fibDim };
-        FloatArray fiberWidths = { fibDim, fibDim, fibDim };
-        double thick           = csDim;
-        double width           = csDim;
+        int number                          = domain->giveNumberOfCrossSectionModels() + 1;
+        int numberOfFibers                  = 3;
+        double area                         = this->giveAreaOfFacet( nFacet );
+        double fibArea                      = area / (double)numberOfFibers;
+        double fibDim                       = sqrt( fibArea );
+        double csDim                        = sqrt( area );
+        FloatArray fiberThicks              = { fibDim, fibDim, fibDim };
+        FloatArray fiberWidths              = { fibDim, fibDim, fibDim };
+        double thick                        = csDim;
+        double width                        = csDim;
         std::vector<FloatArray> fiberCoords = giveFiberZonesOffsetsOfFacet( nFacet );
         FloatArray fiberYcoords, fiberZcoords;
         FloatMatrix lcs;
         IntArray fiberMaterials;
+        // new empty cross-section
+        std::unique_ptr<FiberedCrossSection> crossSection = std::make_unique<FiberedCrossSection>( number, domain );
+        // hard copy cross-section
+        //FiberedCrossSection *rawPtr = static_cast<FiberedCrossSection *> (this->giveCrossSection());
+        //std::unique_ptr<FiberedCrossSection> crossSection4 = std::make_unique<FiberedCrossSection>( *rawPtr );
 
         if ( springsBeams[nFacet - 1].isEmpty() ) {
             OOFEM_ERROR( "Request to make cross-section for facet %d of element %d"
@@ -676,9 +723,6 @@ int RBSMTetra::makeSpringsBeamCrossSection( int nFacet )
             fiberZcoords.append( coords.at( 3 ) );
         }
 
-        std::unique_ptr<FiberedCrossSection> crossSection(
-            static_cast<FiberedCrossSection *>( this->giveCrossSection() ) );
-
         // if material is provided for the element
         if ( this->material ) {
             // use provided element material for the fibers
@@ -687,17 +731,30 @@ int RBSMTetra::makeSpringsBeamCrossSection( int nFacet )
                 m = this->material;
             }
         } else {
-            // do not modify cross section materials
+            #if 0
+            // do not modify cross section materials (for hard copy CS)
             fiberMaterials = {};
+            #else
+            // use material of current element (alternative way)
+            fiberMaterials.resize( numberOfFibers );
+            auto ip = this->giveDefaultIntegrationRulePtr()->getIntegrationPoint(0);
+            int mat = this->giveCrossSection()->giveMaterial(ip)->giveNumber();
+            for ( int &m : fiberMaterials ) {
+                m = mat;
+            }
+            #endif
         }
 
         crossSection->initializeFrom( number, fiberMaterials, fiberThicks, fiberWidths,
             numberOfFibers, thick, width, fiberYcoords, fiberZcoords );
+        domain->resizeCrossSectionModels( number );
+        domain->setCrossSection( number, std::move(crossSection) );
 
     } else {
         OOFEM_ERROR( "%s does not support %s, please use fibered section",
             this->giveClassName(), csType.c_str() )
     }
+
     return number;
 }
 
@@ -708,16 +765,16 @@ void RBSMTetra ::computeLumpedMassMatrix( FloatMatrix &answer, TimeStep *tStep )
     GaussPoint *gp;
     double dV, mss1;
 
-    answer.resize(12, 12);
+    answer.resize( 12, 12 );
     answer.zero();
-    gp = integrationRulesArray [ 0 ]->getIntegrationPoint(0);
+    gp = integrationRulesArray[0]->getIntegrationPoint( 0 );
 
-    dV = this->computeVolumeAround(gp);
-    double density = this->giveStructuralCrossSection()->give('d', gp);
-    mss1 = dV * density / 4.;
+    dV             = this->computeVolumeAround( gp );
+    double density = this->giveStructuralCrossSection()->give( 'd', gp );
+    mss1           = dV * density / 4.;
 
     for ( int i = 1; i <= 12; i++ ) {
-        answer.at(i, i) = mss1;
+        answer.at( i, i ) = mss1;
     }
 }
 
@@ -813,7 +870,8 @@ void RBSMTetra ::HuertaErrorEstimatorI_setupRefinedElementProblem(
     */
 /* ordering of hexa nodes must be compatible with refinedElement connectivity ordering;
      * generally the ordering is: corner side side face side face face center;
-     * however the concrete ordering is element dependent (see refineMeshGlobally source if in doubts) *//*
+     * however the concrete ordering is element dependent (see refineMeshGlobally source if in doubts) */
+/*
 
 
     int hexaSideNode[4][3] = { { 1, 3, 4 }, { 2, 1, 5 }, { 3, 2, 6 }, { 4, 6, 5 } };

@@ -87,7 +87,7 @@ protected:
     IntArray geoNodes;
     /// global number of the springs beam elements
     std::vector<IntArray> springsBeams;
-    /// facets indices of rigid body
+    /// facets' vertex indices of rigid body
     std::vector<IntArray> facetArray;
 
 
@@ -227,6 +227,10 @@ public:
      */
     int makeSpringsBeamCrossSection( int nFacet );
 
+    void giveCharacteristicMatrix( FloatMatrix &answer, CharType type, TimeStep *tStep ) override;
+    void giveCharacteristicVector( FloatArray &answer, CharType type, ValueModeType mode, TimeStep *tStep ) override;
+
+    //bool isActivated( TimeStep *tStep ) override;
 
 protected:
     void rbsmDummyIr( InputRecord &irIn, std::vector<OOFEMTXTInputRecord> &irOut, int master );
