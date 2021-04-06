@@ -210,7 +210,7 @@ public:
      * @returns next available global number for a new element,
      * global number represents the number given inside an input file.
      */
-    int nextElementGlobalNumber();
+    int nextElementGlobalNumber( int baseNumber = 1 );
 
     /**
      * Makes springs beam element and returns assigned local number

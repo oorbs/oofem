@@ -117,8 +117,13 @@ void RBSMTetra::initializeFrom( InputRecord &ir )
             }
             if ( RBSMTetra *e = //> make sure sister element is an RBSM element
                 dynamic_cast<RBSMTetra *>( domain->giveElement( neesan ) ) ) {
+                std::string name;
+                // guess next available element number from current element number
+                // and number of elements.
+                //@todo: should be replaced by a functor that finds next elem number
+                IR_GIVE_RECORD_KEYWORD_FIELD( ir, name, number );
+                number     = nextElementGlobalNumber( number );
                 startPoint = e->giveCellDofmanagerNumber();
-                number     = nextElementGlobalNumber();
                 number     = RBSMTetra::makeSpringsBeam( number, startPoint, endPoint );
                 springsBeams[facetExistingSisters.first - 1].insertSortedOnce( number );
             }
@@ -413,7 +418,7 @@ int RBSMTetra::nextDofmanagerGlobalNumber()
     return num;
 }
 
-int RBSMTetra::nextElementGlobalNumber()
+int RBSMTetra::nextElementGlobalNumber( int baseNumber )
 // finds the next available element's global number
 {
     int globalNumber, count, nElem = 0;
@@ -425,7 +430,8 @@ int RBSMTetra::nextElementGlobalNumber()
     }
 
     // first try for the next DOF manager's global number
-    globalNumber = nElem + 1;
+    // @todo: this is not a good method, reliably find available elem number
+    globalNumber = nElem + baseNumber;
 
     // make sure that global number is unique
     count = 0;
