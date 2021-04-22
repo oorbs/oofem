@@ -141,7 +141,8 @@ void RBSMTetra::postInitialize()
             continue;
         }
 
-        int cs = makeSpringsBeamCrossSection( i + 1 );
+        //int cs = makeSpringsBeamCrossSection_3TriaDissect( i + 1 );
+        int cs = makeSpringsBeamCrossSection_CircularDist( i + 1, 4 );
         for ( int sb : springsBeams[i] ) {
             Beam3d *springsBeam =
                 dynamic_cast<Beam3d *>( domain->giveElement( sb ) );
@@ -444,7 +445,7 @@ int RBSMTetra::nextElementGlobalNumber( int baseNumber )
         globalNumber++;
         count++;
         it = std::find_if( d->elementList.begin(), d->elementList.end(), hasSameNum );
-        if ( count > nElem ) {
+        if ( count > nElem + baseNumber ) {
             // prevent infinite loop
             OOFEM_ERROR( "Failed to find a unique id to make 'RBSM Tetra element'" );
         }
@@ -540,7 +541,7 @@ double RBSMTetra::giveAreaOfFacet( int nFacet )
     return 0.5 * ABxAC.computeNorm();
 }
 
-std::vector<FloatArray> RBSMTetra::giveFiberZonesOffsetsOfFacet( int nFacet )
+std::vector<FloatArray> RBSMTetra::giveFiberZonesOffsetsOfFacet_3TriaDissect( int nFacet )
 {
     auto facet                    = facetArray[nFacet - 1];
     int numberOfRidgesAndVertices = 3;
@@ -629,8 +630,9 @@ std::set<int> RBSMTetra::giveCellElementsOfGeoNode( int geoNode )
 int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
 {
     int number, nElements = 0;
-    Domain *d      = this->giveDomain();
-    auto ELEM_TYPE = _IFT_Beam3d_Name;
+    int numberOfIntPnt = 1;
+    Domain *d          = this->giveDomain();
+    auto ELEM_TYPE     = _IFT_Beam3d_Name;
 
     nElements = d->giveNumberOfElements();
     if ( nElements < 0 ) {
@@ -657,13 +659,16 @@ int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
         element->setActivityTimeFunctionNumber( 0 );
         //elem->numberOfGaussPoints = 1;
         //elem->partitions.clear();
-        //elem->numberOfGaussPoints = 1;
         element->setParallelMode(Element_local);
 
-        // Beam
-        //elem->referenceAngle = 0; // is already set to 0
-        // use condensed DOF for failed moment springs?
-        //dofsToCondense = ...;
+        // Springs element
+        if ( auto sprElement = dynamic_cast <Beam3d *>( element.get() ) )
+        {
+            sprElement->setNumberOfGaussPoints( numberOfIntPnt );
+            //elem->referenceAngle = 0; // is already set to 0
+            // use condensed DOF for failed moment springs?
+            //dofsToCondense = ...;
+        }
     }
 
 
@@ -688,7 +693,7 @@ int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
     return number;
 }
 
-int RBSMTetra::makeSpringsBeamCrossSection( int nFacet )
+int RBSMTetra::makeSpringsBeamCrossSection_3TriaDissect( int nFacet )
 {
     std::string csType = this->giveCrossSection()->giveClassName();
     if ( csType == "FiberedCrossSection" ) {
@@ -702,7 +707,7 @@ int RBSMTetra::makeSpringsBeamCrossSection( int nFacet )
         FloatArray fiberWidths              = { fibDim, fibDim, fibDim };
         double thick                        = csDim;
         double width                        = csDim;
-        std::vector<FloatArray> fiberCoords = giveFiberZonesOffsetsOfFacet( nFacet );
+        std::vector<FloatArray> fiberCoords = giveFiberZonesOffsetsOfFacet_3TriaDissect( nFacet );
         FloatArray fiberYcoords, fiberZcoords;
         FloatMatrix lcs;
         IntArray fiberMaterials;
@@ -716,7 +721,9 @@ int RBSMTetra::makeSpringsBeamCrossSection( int nFacet )
             OOFEM_ERROR( "Request to make cross-section for facet %d of element %d"
                          "which does not have any springs beam element",
                 nFacet, this->number );
-        } else { // coordinates system of beams (in rare cases of having more than one sister on the same facet) on the same facet could be different, but the effect is negligible so I will use the first beam.
+        } else {
+            // coordinates system of beams (in rare cases of having more than one sister on the same facet) on the same
+            // facet could be different, but the effect is negligible so I will use the first beam.
             Element *b = domain->giveElement( springsBeams[nFacet - 1][0] );
             b->giveLocalCoordinateSystem( lcs );
         }
@@ -747,6 +754,69 @@ int RBSMTetra::makeSpringsBeamCrossSection( int nFacet )
                 m = mat;
             }
             #endif
+        }
+
+        crossSection->initializeFrom( number, fiberMaterials, fiberThicks, fiberWidths,
+            numberOfFibers, thick, width, fiberYcoords, fiberZcoords );
+        domain->resizeCrossSectionModels( number );
+        domain->setCrossSection( number, std::move(crossSection) );
+
+    } else {
+        OOFEM_ERROR( "%s does not support %s, please use fibered section",
+            this->giveClassName(), csType.c_str() )
+    }
+
+    return number;
+}
+int RBSMTetra::makeSpringsBeamCrossSection_CircularDist( int nFacet, int numberOfFibers )
+{
+    std::string csType = this->giveCrossSection()->giveClassName();
+    if ( csType == "FiberedCrossSection" ) {
+        int number                          = domain->giveNumberOfCrossSectionModels() + 1;
+        numberOfFibers = numberOfFibers > 2 ? numberOfFibers : 3;
+        double area                         = this->giveAreaOfFacet( nFacet );
+        double fibArea                      = area / (double)numberOfFibers;
+        double fibDim                       = sqrt( fibArea );
+        double csDim                        = sqrt( area );
+        double thick                        = csDim;
+        double width                        = csDim;
+        FloatArray fiberThicks( numberOfFibers );
+        FloatArray fiberWidths( numberOfFibers );
+        FloatArray fiberYcoords( numberOfFibers );
+        FloatArray fiberZcoords( numberOfFibers );
+        IntArray fiberMaterials( numberOfFibers );
+        double fibZoneAngle                 = 2. * M_PI / (double)numberOfFibers;
+        double fibZoneOffsetAngle           = fibZoneAngle / 2.;
+        double fibZoneOffsetRadii           = 2. / 3. * sqrt( area * M_1_PI ); // 2/3 * sqrt(area/pi)
+
+        for ( int i = 0; i < numberOfFibers; ++i ) {
+            fiberThicks[i]  = fibDim;
+            fiberWidths[i]  = fibDim;
+            fiberYcoords[i] = sin( (double)i * fibZoneAngle + fibZoneOffsetAngle ) * fibZoneOffsetRadii;
+            fiberZcoords[i] = cos( (double)i * fibZoneAngle + fibZoneOffsetAngle ) * fibZoneOffsetRadii;
+        }
+
+        // new empty cross-section
+        std::unique_ptr<FiberedCrossSection> crossSection = std::make_unique<FiberedCrossSection>( number, domain );
+        // hard copy cross-section
+        //FiberedCrossSection *rawPtr = static_cast<FiberedCrossSection *> (this->giveCrossSection());
+        //std::unique_ptr<FiberedCrossSection> crossSection = std::make_unique<FiberedCrossSection>( *rawPtr );
+
+        // if material is provided for the element
+        if ( this->material ) {
+            // use provided element material for the fibers
+            fiberMaterials.resize( numberOfFibers );
+            for ( int &m : fiberMaterials ) {
+                m = this->material;
+            }
+        } else {
+            // use material of current element (alternative way)
+            fiberMaterials.resize( numberOfFibers );
+            auto ip = this->giveDefaultIntegrationRulePtr()->getIntegrationPoint( 0 );
+            int mat = this->giveCrossSection()->giveMaterial( ip )->giveNumber();
+            for ( int &m : fiberMaterials ) {
+                m = mat;
+            }
         }
 
         crossSection->initializeFrom( number, fiberMaterials, fiberThicks, fiberWidths,

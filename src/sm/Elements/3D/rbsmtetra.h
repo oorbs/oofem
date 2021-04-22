@@ -113,7 +113,7 @@ public:
      * @param nFacet the number of targeted facet of the element
      * @return distance coordinates for all fiber zones in a vector
      */
-    std::vector<FloatArray> giveFiberZonesOffsetsOfFacet( int nFacet );
+    std::vector<FloatArray> giveFiberZonesOffsetsOfFacet_3TriaDissect( int nFacet );
 
     void initializeFrom(InputRecord &ir) override;
 
@@ -225,7 +225,8 @@ public:
      * @param nFacet the number of facet whose cross-section will be made
      * @return assigned number to the new cross-section
      */
-    int makeSpringsBeamCrossSection( int nFacet );
+    int makeSpringsBeamCrossSection_3TriaDissect( int nFacet );
+    int makeSpringsBeamCrossSection_CircularDist( int nFacet, int numberOfFibers );
 
     void giveCharacteristicMatrix( FloatMatrix &answer, CharType type, TimeStep *tStep ) override;
     void giveCharacteristicVector( FloatArray &answer, CharType type, ValueModeType mode, TimeStep *tStep ) override;
