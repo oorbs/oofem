@@ -819,6 +819,23 @@ int RBSMTetra::makeSpringsBeamCrossSection_CircularDist( int nFacet, int numberO
             }
         }
 
+        // dummy linear fibers
+        if ( true ) {
+            numberOfFibers += 4;
+            fiberMaterials.resizeWithValues( numberOfFibers );
+            fiberThicks.resizeWithValues( numberOfFibers );
+            fiberWidths.resizeWithValues( numberOfFibers );
+            fiberYcoords.resizeWithValues( numberOfFibers );
+            fiberZcoords.resizeWithValues( numberOfFibers );
+            for ( int i = 0; i < 4; ++i ) {
+                fiberMaterials.at( numberOfFibers - i ) = 2;
+                fiberThicks.at( numberOfFibers - i )    = 1.;
+                fiberWidths.at( numberOfFibers - i )    = 1.;
+                fiberYcoords.at( numberOfFibers - i ) = i < 2 ? -1. : +1.;
+                fiberZcoords.at( numberOfFibers - i ) = ( i == 0 || i == 3 ) ? 1. : -1.;
+            }
+        }
+
         crossSection->initializeFrom( number, fiberMaterials, fiberThicks, fiberWidths,
             numberOfFibers, thick, width, fiberYcoords, fiberZcoords );
         domain->resizeCrossSectionModels( number );
