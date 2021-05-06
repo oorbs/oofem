@@ -147,7 +147,7 @@ public:
     const char *giveInputRecordName() const override { return _IFT_FiberedCrossSection_Name; }
     const char *giveClassName() const override { return "FiberedCrossSection"; }
     void initializeFrom(InputRecord &ir) override;
-    void initializeFrom( int number = 0, IntArray fiberMaterials = {}, FloatArray fiberThicks = {},
+    virtual void initializeFrom( int number = 0, IntArray fiberMaterials = {}, FloatArray fiberThicks = {},
         FloatArray fiberWidths = {}, int numberOfFibers = 0, double thick = 0.0, double width = 0.0,
         FloatArray fiberYcoords = {}, FloatArray fiberZcoords = {} );
 
