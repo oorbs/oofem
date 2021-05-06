@@ -47,6 +47,7 @@
 
 #include "rigidarmnode.h"
 #include "sm/Elements/Beams/beam3d.h"
+#include "sm/Elements/Beams/rbsbeam3d.h"
 
 #ifdef __OOFEG
 #include "oofeggraphiccontext.h"
@@ -144,8 +145,8 @@ void RBSMTetra::postInitialize()
         //int cs = makeSpringsBeamCrossSection_3TriaDissect( i + 1 );
         int cs = makeSpringsBeamCrossSection_CircularDist( i + 1, 4 );
         for ( int sb : springsBeams[i] ) {
-            Beam3d *springsBeam =
-                dynamic_cast<Beam3d *>( domain->giveElement( sb ) );
+            RBSBeam3d *springsBeam =
+                dynamic_cast<RBSBeam3d *>( domain->giveElement( sb ) );
             if ( !springsBeam ) {
                 OOFEM_ERROR(
                     "face %d of element %d points to an invalid element for its springs",
@@ -632,7 +633,7 @@ int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
     int number, nElements = 0;
     int numberOfIntPnt = 1;
     Domain *d          = this->giveDomain();
-    auto ELEM_TYPE     = _IFT_Beam3d_Name;
+    auto ELEM_TYPE     = _IFT_RBSBeam3d_Name;
 
     nElements = d->giveNumberOfElements();
     if ( nElements < 0 ) {
@@ -662,12 +663,14 @@ int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
         element->setParallelMode(Element_local);
 
         // Springs element
-        if ( auto sprElement = dynamic_cast <Beam3d *>( element.get() ) )
+        if ( auto sprElement = dynamic_cast <RBSBeam3d *>( element.get() ) )
         {
             sprElement->setNumberOfGaussPoints( numberOfIntPnt );
             //elem->referenceAngle = 0; // is already set to 0
             // use condensed DOF for failed moment springs?
             //dofsToCondense = ...;
+        } else {
+            OOFEM_ERROR("Failed to modify Gauss points of springs beam element")
         }
     }
 
@@ -712,7 +715,7 @@ int RBSMTetra::makeSpringsBeamCrossSection_3TriaDissect( int nFacet )
         FloatMatrix lcs;
         IntArray fiberMaterials;
         // new empty cross-section
-        std::unique_ptr<FiberedCrossSection> crossSection = std::make_unique<FiberedCrossSection>( number, domain );
+        std::unique_ptr<RBSFiberedCrossSection> crossSection = std::make_unique<RBSFiberedCrossSection>( number, domain );
         // hard copy cross-section
         //FiberedCrossSection *rawPtr = static_cast<FiberedCrossSection *> (this->giveCrossSection());
         //std::unique_ptr<FiberedCrossSection> crossSection4 = std::make_unique<FiberedCrossSection>( *rawPtr );
@@ -756,6 +759,23 @@ int RBSMTetra::makeSpringsBeamCrossSection_3TriaDissect( int nFacet )
             #endif
         }
 
+        // dummy linear fibers
+        if ( false ) {
+            numberOfFibers += 4;
+            fiberMaterials.resizeWithValues( numberOfFibers );
+            fiberThicks.resizeWithValues( numberOfFibers );
+            fiberWidths.resizeWithValues( numberOfFibers );
+            fiberYcoords.resizeWithValues( numberOfFibers );
+            fiberZcoords.resizeWithValues( numberOfFibers );
+            for ( int i = 0; i < 4; ++i ) {
+                fiberMaterials.at( numberOfFibers - i ) = 2;
+                fiberThicks.at( numberOfFibers - i )    = 1.;
+                fiberWidths.at( numberOfFibers - i )    = 1.;
+                fiberYcoords.at( numberOfFibers - i ) = i < 2 ? -1. : +1.;
+                fiberZcoords.at( numberOfFibers - i ) = ( i == 0 || i == 3 ) ? 1. : -1.;
+            }
+        }
+
         crossSection->initializeFrom( number, fiberMaterials, fiberThicks, fiberWidths,
             numberOfFibers, thick, width, fiberYcoords, fiberZcoords );
         domain->resizeCrossSectionModels( number );
@@ -797,7 +817,7 @@ int RBSMTetra::makeSpringsBeamCrossSection_CircularDist( int nFacet, int numberO
         }
 
         // new empty cross-section
-        std::unique_ptr<FiberedCrossSection> crossSection = std::make_unique<FiberedCrossSection>( number, domain );
+        std::unique_ptr<RBSFiberedCrossSection> crossSection = std::make_unique<RBSFiberedCrossSection>( number, domain );
         // hard copy cross-section
         //FiberedCrossSection *rawPtr = static_cast<FiberedCrossSection *> (this->giveCrossSection());
         //std::unique_ptr<FiberedCrossSection> crossSection = std::make_unique<FiberedCrossSection>( *rawPtr );
@@ -820,19 +840,21 @@ int RBSMTetra::makeSpringsBeamCrossSection_CircularDist( int nFacet, int numberO
         }
 
         // dummy linear fibers
-        if ( true ) {
-            numberOfFibers += 4;
-            fiberMaterials.resizeWithValues( numberOfFibers );
-            fiberThicks.resizeWithValues( numberOfFibers );
-            fiberWidths.resizeWithValues( numberOfFibers );
-            fiberYcoords.resizeWithValues( numberOfFibers );
-            fiberZcoords.resizeWithValues( numberOfFibers );
-            for ( int i = 0; i < 4; ++i ) {
-                fiberMaterials.at( numberOfFibers - i ) = 2;
-                fiberThicks.at( numberOfFibers - i )    = 1.;
-                fiberWidths.at( numberOfFibers - i )    = 1.;
-                fiberYcoords.at( numberOfFibers - i ) = i < 2 ? -1. : +1.;
-                fiberZcoords.at( numberOfFibers - i ) = ( i == 0 || i == 3 ) ? 1. : -1.;
+        if ( false ) {
+            int numberOfDummyFibers = numberOfFibers;
+            double dummyScale = 0.1;
+            double numberAllFibers  = numberOfFibers + numberOfDummyFibers;
+            fiberMaterials.resizeWithValues( numberAllFibers );
+            fiberThicks.resizeWithValues( numberAllFibers );
+            fiberWidths.resizeWithValues( numberAllFibers );
+            fiberYcoords.resizeWithValues( numberAllFibers );
+            fiberZcoords.resizeWithValues( numberAllFibers );
+            for ( int i = 0; i < numberOfDummyFibers; ++i ) {
+                fiberMaterials[numberOfFibers + i] = 2;
+                fiberThicks[numberOfFibers + i]    = dummyScale * fiberThicks[i];
+                fiberWidths[numberOfFibers + i]    = dummyScale * fiberWidths[i];
+                fiberYcoords[numberOfFibers + i]   = fiberYcoords[i];
+                fiberZcoords[numberOfFibers + i]   = fiberZcoords[i];
             }
         }
 

@@ -36,6 +36,7 @@ set (sm_element
     Elements/Beams/beambaseelement.C
     Elements/Beams/beam2d.C 
     Elements/Beams/beam3d.C
+    Elements/Beams/rbsbeam3d.C
     Elements/Beams/libeam3dboundary.C
     Elements/Beams/libeam3dboundarytruss.C
     Elements/Beams/libeam3dboundarymembrane.C
@@ -160,6 +161,7 @@ set (sm_crosssection
     CrossSections/simplecrosssection.C
     CrossSections/layeredcrosssection.C
     CrossSections/fiberedcs.C
+    CrossSections/rbsfiberedcs.C
     CrossSections/structuralinterfacecrosssection.C
     CrossSections/variablecrosssection.C
     CrossSections/warpingcrosssection.C
