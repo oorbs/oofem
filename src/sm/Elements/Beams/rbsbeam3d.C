@@ -81,92 +81,71 @@ void RBSBeam3d::initializeFrom( InputRecord &ir )
 
 void RBSBeam3d::computeBmatrixAt( GaussPoint *gp, FloatMatrix &answer, int li, int ui )
 {
-    double l, ksi, kappay, kappaz, c1y, c1z;
-    TimeStep *tStep = this->domain->giveEngngModel()->giveCurrentStep();
+    double l, ksi, n1, n2, n1x, n2x;
 
-    l      = this->computeLength();
-    ksi    = 0.5 + 0.5 * gp->giveNaturalCoordinate( 1 );
-    kappay = this->giveKappayCoeff( tStep );
-    kappaz = this->giveKappazCoeff( tStep );
-    c1y    = 1. + 2. * kappay;
-    c1z    = 1. + 2. * kappaz;
+    l     = this->computeLength();
+    ksi   = gp->giveNaturalCoordinate(1);
 
-    // eeps = {\eps_x, \gamma_xz, \gamma_xy, \der{phi_x}{x}, \kappa_y, \kappa_z}^T
-    answer.resize( 6, 12 );
+    //eeps = {\eps_x, \gamma_xz, \gamma_xy, \der{phi_x}{x}, \kappa_y, \kappa_z}^T
+    answer.resize(6, 12);
     answer.zero();
 
-    answer.at( 1, 1 ) = -1. / l;
-    answer.at( 1, 7 ) = 1. / l;
+    n1x   = -1.0 / l;
+    n1    = 0.5 * ( 1 - ksi );
+    n2x   =  1.0 / l;
+    n2    = 0.5 * ( 1. + ksi );
 
-    answer.at( 2, 3 )  = ( -2. * kappay ) / ( l * c1y );
-    answer.at( 2, 5 )  = kappay / ( c1y );
-    answer.at( 2, 9 )  = 2. * kappay / ( l * c1y );
-    answer.at( 2, 11 ) = kappay / ( c1y );
-
-    answer.at( 3, 2 )  = ( -2. * kappaz ) / ( l * c1z );
-    answer.at( 3, 6 )  = -kappaz / ( c1z );
-    answer.at( 3, 8 )  = 2. * kappaz / ( l * c1z );
-    answer.at( 3, 12 ) = -kappaz / ( c1z );
-
-
-    answer.at( 4, 4 )  = -1. / l;
-    answer.at( 4, 10 ) = 1. / l;
-
-    answer.at( 5, 3 )  = ( 6. - 12. * ksi ) / ( l * l * c1y );
-    answer.at( 5, 5 )  = ( -2. * ( 2. + kappay ) + 6. * ksi ) / ( l * c1y );
-    answer.at( 5, 9 )  = ( -6. + 12. * ksi ) / ( l * l * c1y );
-    answer.at( 5, 11 ) = ( -2. * ( 1. - kappay ) + 6. * ksi ) / ( l * c1y );
-
-    answer.at( 6, 2 )  = -1.0 * ( 6. - 12. * ksi ) / ( l * l * c1z );
-    answer.at( 6, 6 )  = ( -2. * ( 2. + kappaz ) + 6. * ksi ) / ( l * c1z );
-    answer.at( 6, 8 )  = -1.0 * ( -6. + 12. * ksi ) / ( l * l * c1z );
-    answer.at( 6, 12 ) = ( -2. * ( 1. - kappaz ) + 6. * ksi ) / ( l * c1z );
+    // XX normal
+    answer.at(1, 1) =  -1. / l;
+    answer.at(1, 7) =   1. / l;
+    // XZ shear
+    answer.at(2, 3)  = n1x;
+    answer.at(2, 5)  = n1;
+    answer.at(2, 9)  = n2x;
+    answer.at(2, 11) = n2;
+    // XY shear
+    answer.at(3, 2)  = n1x;
+    answer.at(3, 6)  = -n1;
+    answer.at(3, 8)  = n2x;
+    answer.at(3, 12) = -n2;
+    //
+    // X torsion
+    answer.at(4, 4)  =  -1. / l;
+    answer.at(4, 10) =   1. / l;
+    // Y curvature
+    answer.at(5, 5)  = n1x;
+    answer.at(5, 11) = n2x;
+    // Z curvature
+    answer.at(6, 6)  = n1x;
+    answer.at(6, 12) = n2x;
 }
 
 void RBSBeam3d ::computeNmatrixAt( const FloatArray &iLocCoord, FloatMatrix &answer )
-// Returns the displacement interpolation matrix {N} of the receiver, eva-
-// luated at gp. Used for numerical calculation of consistent mass
-// matrix. Must contain only interpolation for displacement terms,
-// not for any rotations. (Inertia forces do not work on rotations).
-// r = {u1,v1,w1,fi_x1,fi_y1,fi_z1,u2,v2,w2,fi_x2,fi_y2,fi_21}^T
+// Returns the displacement interpolation matrix {N} of the receiver, evaluated at gp.
 {
-    double l, ksi, ksi2, ksi3, kappay, kappaz, c1y, c1z;
-    TimeStep *tStep = this->domain->giveEngngModel()->giveCurrentStep();
+    double ksi, n1, n2;
 
-    l      = this->computeLength();
-    ksi    = 0.5 + 0.5 * iLocCoord.at( 1 );
-    kappay = this->giveKappayCoeff( tStep );
-    kappaz = this->giveKappazCoeff( tStep );
-    c1y    = 1. + 2. * kappay;
-    c1z    = 1. + 2. * kappaz;
-    ksi2   = ksi * ksi;
-    ksi3   = ksi2 * ksi;
+    ksi = iLocCoord.at(1);
+    n1  = ( 1. - ksi ) * 0.5;
+    n2  = ( 1. + ksi ) * 0.5;
 
-    answer.resize( 6, 12 );
+    // d = {u1, v1, w1, phi_x1, phi_y1, phi_z1,  u2, v2, w2, phi_x2, phi_y2, phi_z2}^T
+    answer.resize(6, 12);
     answer.zero();
 
-    answer.at( 1, 1 )  = 1. - ksi;
-    answer.at( 1, 7 )  = ksi;
-    answer.at( 2, 2 )  = ( c1z - 2. * kappaz * ksi - 3. * ksi2 + 2. * ksi3 ) / c1z;
-    answer.at( 2, 6 )  = -l * ( -( 1. + kappaz ) * ksi + ( 2. + kappaz ) * ksi2 - ksi3 ) / c1z;
-    answer.at( 2, 8 )  = ( 2. * kappaz * ksi + 3. * ksi2 - 2. * ksi3 ) / c1z;
-    answer.at( 2, 12 ) = -l * ( kappaz * ksi + ( 1. - kappaz ) * ksi2 - ksi3 ) / c1z;
-    answer.at( 3, 3 )  = ( c1y - 2. * kappay * ksi - 3. * ksi2 + 2. * ksi3 ) / c1y;
-    answer.at( 3, 5 )  = l * ( -( 1. + kappay ) * ksi + ( 2. + kappay ) * ksi2 - ksi3 ) / c1y;
-    answer.at( 3, 9 )  = ( 2. * kappay * ksi + 3. * ksi2 - 2. * ksi3 ) / c1y;
-    answer.at( 3, 11 ) = l * ( kappay * ksi + ( 1. - kappay ) * ksi2 - ksi3 ) / c1y;
+    answer.at( 1, 1 ) = n1;
+    answer.at( 1, 7 ) = n2;
+    answer.at( 2, 2 ) = n1;
+    answer.at( 2, 8 ) = n2;
+    answer.at( 3, 3 ) = n1;
+    answer.at( 3, 9 ) = n2;
 
-    // rotations excluded
-    answer.at( 4, 4 )  = 1. - ksi;
-    answer.at( 4, 10 ) = ksi;
-    answer.at( 5, 3 )  = ( 6. * ksi - 6. * ksi2 ) / ( l * c1y );
-    answer.at( 5, 5 )  = ( c1y - 2. * ( 2. + kappay ) * ksi + 3. * ksi2 ) / c1y;
-    answer.at( 5, 9 )  = -( 6. * ksi - 6. * ksi2 ) / ( l * c1y );
-    answer.at( 5, 11 ) = ( -2. * ( 1. - kappay ) * ksi + 3. * ksi2 ) / c1y;
-    answer.at( 6, 2 )  = -( 6. * ksi - 6. * ksi2 ) / ( l * c1z );
-    answer.at( 6, 6 )  = ( c1z - 2. * ( 2. + kappaz ) * ksi + 3. * ksi2 ) / c1z;
-    answer.at( 6, 8 )  = ( 6. * ksi - 6. * ksi2 ) / ( l * c1z );
-    answer.at( 6, 12 ) = ( -2. * ( 1. - kappaz ) * ksi + 3. * ksi2 ) / c1z;
+    answer.at( 4, 4 )  = n1;
+    answer.at( 4, 10 ) = n2;
+    answer.at( 5, 5 )  = n1;
+    answer.at( 5, 11 ) = n2;
+    answer.at( 6, 6 )  = n1;
+    answer.at( 6, 12 ) = n2;
 }
 
 
