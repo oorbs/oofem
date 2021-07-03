@@ -37,6 +37,7 @@ set (sm_element
     Elements/Beams/beam2d.C 
     Elements/Beams/beam3d.C
     Elements/Beams/rbsbeam3d.C
+    Elements/Beams/rbsmbeam3d.C
     Elements/Beams/libeam3dboundary.C
     Elements/Beams/libeam3dboundarytruss.C
     Elements/Beams/libeam3dboundarymembrane.C

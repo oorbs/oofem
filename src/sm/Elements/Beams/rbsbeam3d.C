@@ -65,6 +65,10 @@ REGISTER_Element( RBSBeam3d );
 RBSBeam3d::RBSBeam3d( int n, Domain *aDomain ) : Beam3d( n, aDomain )
 {
     numberOfGaussPoints = 1;
+
+    referenceNode = 0;
+    referenceAngle = 0;
+    this->zaxis.clear();
 }
 
 RBSBeam3d::~RBSBeam3d()

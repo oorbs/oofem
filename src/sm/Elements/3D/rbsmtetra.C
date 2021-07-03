@@ -1,11 +1,10 @@
 /*
  *
- *                 #####    #####   ######  ######  ###   ###
- *               ##   ##  ##   ##  ##      ##      ## ### ##
- *              ##   ##  ##   ##  ####    ####    ##  #  ##
- *             ##   ##  ##   ##  ##      ##      ##     ##
- *            ##   ##  ##   ##  ##      ##      ##     ##
- *            #####    #####   ##      ######  ##     ##
+ *                      ____ ____  ____  ____ _____
+ *                     / __   __ \/ __ \/ __ ) ___/
+ *                    / / /  / / / /_/ / __  \__ \
+ *                   / /_/  /_/ / _, _/ /_/ /__/ /
+ *                   \____ ____/_/ |_/_____/____/
  *
  *
  *             OOFEM : Object Oriented Finite Element Code
@@ -48,6 +47,7 @@
 #include "rigidarmnode.h"
 #include "sm/Elements/Beams/beam3d.h"
 #include "sm/Elements/Beams/rbsbeam3d.h"
+#include "sm/Elements/Beams/rbsmbeam3d.h"
 
 #ifdef __OOFEG
 #include "oofeggraphiccontext.h"
@@ -59,6 +59,9 @@
 
 namespace oofem {
 REGISTER_Element( RBSMTetra );
+
+// use Mindlin beam (RBSBeam3d=>RBSMBeam3D)
+#define MINDLIN
 
 // S: todo: update or confirm
 FEI3dTetLin RBSMTetra::interpolation;
@@ -145,8 +148,11 @@ void RBSMTetra::postInitialize()
         //int cs = makeSpringsBeamCrossSection_3TriaDissect( i + 1 );
         int cs = makeSpringsBeamCrossSection_CircularDist( i + 1, 4 );
         for ( int sb : springsBeams[i] ) {
-            RBSBeam3d *springsBeam =
-                dynamic_cast<RBSBeam3d *>( domain->giveElement( sb ) );
+#if defined MINDLIN
+            RBSMBeam3d *springsBeam = dynamic_cast<RBSMBeam3d *>( domain->giveElement( sb ) );
+#else
+            RBSBeam3d *springsBeam = dynamic_cast<RBSBeam3d *>( domain->giveElement( sb ) );
+#endif
             if ( !springsBeam ) {
                 OOFEM_ERROR(
                     "face %d of element %d points to an invalid element for its springs",
@@ -633,7 +639,11 @@ int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
     int number, nElements = 0;
     int numberOfIntPnt = 1;
     Domain *d          = this->giveDomain();
+#if defined MINDLIN
+    auto ELEM_TYPE     = _IFT_RBSMBeam3d_Name;
+#else
     auto ELEM_TYPE     = _IFT_RBSBeam3d_Name;
+#endif
 
     nElements = d->giveNumberOfElements();
     if ( nElements < 0 ) {
@@ -663,7 +673,14 @@ int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
         element->setParallelMode(Element_local);
 
         // Springs element
-        if ( auto sprElement = dynamic_cast <RBSBeam3d *>( element.get() ) )
+
+        if (
+#if defined MINDLIN
+            auto sprElement = dynamic_cast <RBSMBeam3d *>( element.get() )
+#else
+            auto sprElement = dynamic_cast <RBSBeam3d *>( element.get() )
+#endif
+            )
         {
             sprElement->setNumberOfGaussPoints( numberOfIntPnt );
             //elem->referenceAngle = 0; // is already set to 0
