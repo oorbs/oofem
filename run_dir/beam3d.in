@@ -1,0 +1,59 @@
+beam3d.out
+Simple Beam Structure - nonlinear analysis
+StaticStructural nsteps 40 nmodules 3
+#
+# .: VTK :.
+# strs:1 prinStrs:2 Strn:4 prinStrn:5 Beam-F&M:7 beam-strn&crv:8 disp:12 | stype:0-2
+vtkxml tstep_all domain_all vars 3 7 8 12 stype 0
+vtkxml tstep_all domain_all cellvars 3 7 8 12
+vtkxml tstep_all domain_all ipvars 3 7 8 12
+#
+domain 3d
+OutputManager tstep_all dofman_all element_all
+ndofman 3 nelem 1 ncrosssect 1 nmat 1 nbc 2 nic 0 nset 3 nltf 1
+#
+node 1    coords 3   0.  0.   0.
+node 2    coords 3   100.  0.  0.
+node 3    coords 3   0.  1.   0.
+#
+#Beam3d 1  nodes 2  1 2   refAngle 0.   nip 1
+liBeam3d 1 nodes 2 1 2 refNode 3 nip 1
+#
+# .: Section :.
+#SimpleCS 1 area 200 Iy 1.389e5 Iz 1.389e5 Ik 1.e6 beamShearCoeff 1.e18 thick 1 material 1 set 1
+FiberedCS 1 fibermaterials 4 1 1 1 1 thicks 4 1 1 1 1   widths 4 1 1 1 1  fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 1
+#
+# .: Material :.
+#IsoLE 1 d 1. E 3.e4 n 0.2 tAlpha 1.2e-5
+#tutorialmaterial 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5 sigy 60.0 H -10000.0
+RBSConcrete1 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5 fc 60.0 Et -10001.0
+#MisesMat 1 d 1.0 E 3.e4 n 0.0000 sig0 60 H -10000. omega_crit 0 a 0. tAlpha 1.2e-5
+#
+# .: BC :.
+# < BC Bending>
+#BoundaryCondition 1 loadTimeFunction 1  dofs 4  1 2 3 5 values 4  0. 0. 0. 0.1  set 2
+#BoundaryCondition 2 loadTimeFunction 1  dofs 4  1 2 3 5 values 4  0. 0. 0. -.1  set 3
+# < BC Pulling>
+BoundaryCondition 1 loadTimeFunction 1  dofs 4  1 2 3 4 values 4  0. 0. 0. 0.  set 2
+BoundaryCondition 2 loadTimeFunction 1  dofs 4  1 2 3 4 values 4  .5 0. 0. 0.  set 3
+#
+PiecewiseLinFunction 1 nPoints 2 t 2 0. 40. f(t) 2 0. 1.
+Set 1 allelements
+Set 2 nodes 1 1
+Set 3 nodes 1 2
+
+#%BEGIN_CHECK%
+## check reactions
+#REACTION number 1 dof 1
+#REACTION number 1 dof 2
+#REACTION number 1 dof 3
+#REACTION number 1 dof 4
+#REACTION number 1 dof 5
+#REACTION number 1 dof 6
+#REACTION number 2 dof 1
+#REACTION number 2 dof 2
+#REACTION number 2 dof 3
+#REACTION number 2 dof 4
+#REACTION number 2 dof 5
+#REACTION number 2 dof 6
+#%END_CHECK%
