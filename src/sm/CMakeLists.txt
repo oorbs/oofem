@@ -265,7 +265,8 @@ set (sm_material
     Materials/winklermodel.C
     Materials/structmatsettable.C
     Materials/tutorialmaterial.C
-    Materials/graddamagematerialextensioninterface.C    
+    Materials/DiscreteModels/rbsconcrete1.C
+    Materials/graddamagematerialextensioninterface.C
     Materials/rcm2.C
     Materials/isodamagemodel.C
     Materials/steelrelaxmat.C
