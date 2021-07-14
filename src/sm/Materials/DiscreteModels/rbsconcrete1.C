@@ -106,22 +106,29 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
     double tr_f = trialNormalStress - sigma_y;
 
     FloatArrayF<6> stress;
-    if ( tr_f <= 0.0 ) { // elastic
-        stress = trialStress;
+    stress = trialStress;
 
-        status->letTempPlasticStrainBe(status->givePlasticStrain());
+
+    if ( status->giveNormalState() ) {
+        // damaged normal spring
+        stress.at( 1 ) = 0;
+    } else if ( tr_f <= 0.0 ) { // elastic
+        status->letTempPlasticStrainBe( status->givePlasticStrain() );
     } else { // plastic loading
-        double E = D.giveYoungsModulus();
+        double E         = D.giveYoungsModulus();
         double dPlStrain = tr_f / ( E + H ); // plastic multiplier
         // radial return
         auto corNormalStress = trialNormalStress - E * dPlStrain;
-        stress = trialStress;
+        if ( corNormalStress < 0. ) {
+            corNormalStress = 0.;
+            status->letTempNormalStateBe( 1 );
+        }
         stress.at( 1 ) = corNormalStress;
         k += dPlStrain;
 
         auto plasticStrain = status->givePlasticStrain();
-        plasticStrain.at(1) += dPlStrain;
-        status->letTempPlasticStrainBe(plasticStrain);
+        plasticStrain.at( 1 ) += dPlStrain;
+        status->letTempPlasticStrainBe( plasticStrain );
     }
 
     // Store the temporary values for the given iteration
@@ -151,10 +158,16 @@ RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp
     
     auto elasticStiffness = D.giveTangent();
 
+    if(status->giveNormalState()) {
+        elasticStiffness.at( 1, 1 ) = 0.;
+        return elasticStiffness;
+    }
+
     if ( tr_f < 0.0 ) { // elastic
         return elasticStiffness;
     } else { // plastic loading
-        elasticStiffness.at(1, 1) = this->Et; // set Et ***
+        // set Et
+        elasticStiffness.at(1, 1) = this->Et;
         return elasticStiffness;
     }
 }
@@ -206,6 +219,7 @@ RBSConcrete1Status::initTempStatus()
 
     tempPlasticStrain = plasticStrain;
     tempK = k;
+    tempNormalState = normalState;
     tempDevTrialStress = zeros<6>();
 }
 
@@ -220,6 +234,7 @@ RBSConcrete1Status::updateYourself(TimeStep *tStep)
 
     plasticStrain = tempPlasticStrain;
     k = tempK;
+    normalState   = tempNormalState;
     // deviatoric trial stress is not really a state variable and was used not to repeat some code...
 }
 

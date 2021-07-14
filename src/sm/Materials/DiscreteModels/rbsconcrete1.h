@@ -103,6 +103,9 @@ protected:
     double tempK = 0.;
     double k = 0.;
 
+    int tempNormalState = 0;
+    int normalState     = 0;
+
 public:
     RBSConcrete1Status(GaussPoint * g);
 
@@ -112,7 +115,11 @@ public:
 
     double giveK() const { return this->k; }
 
+    double giveNormalState() const { return this->normalState; }
+
     void letTempKBe(double value) { tempK = value; }
+
+    void letTempNormalStateBe(double value) { tempNormalState = value; }
 
     void letTempDevTrialStressBe(const FloatArrayF<6> &values) { tempDevTrialStress = values; }
     const FloatArrayF<6> &giveTempDevTrialStress() const { return tempDevTrialStress; }
