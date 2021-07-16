@@ -166,7 +166,7 @@ RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp
     if ( tr_f < 0.0 ) { // elastic
         return elasticStiffness;
     } else { // plastic loading
-        // set Et
+        // set Et (comment out for better stability)
         elasticStiffness.at(1, 1) = this->Et;
         return elasticStiffness;
     }

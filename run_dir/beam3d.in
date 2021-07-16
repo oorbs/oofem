@@ -26,7 +26,7 @@ FiberedCS 1 fibermaterials 4 1 1 1 1 thicks 4 1 1 1 1   widths 4 1 1 1 1  fibery
 # .: Material :.
 #IsoLE 1 d 1. E 3.e4 n 0.2 tAlpha 1.2e-5
 #tutorialmaterial 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5 sigy 60.0 H -10000.0
-RBSConcrete1 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5 fc 60.0 Et -10001.0
+RBSConcrete1 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5 fc 60.0 Et -10000.0
 #MisesMat 1 d 1.0 E 3.e4 n 0.0000 sig0 60 H -10000. omega_crit 0 a 0. tAlpha 1.2e-5
 #
 # .: BC :.
