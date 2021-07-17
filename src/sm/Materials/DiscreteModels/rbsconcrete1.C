@@ -159,15 +159,18 @@ RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp
     auto elasticStiffness = D.giveTangent();
 
     if(status->giveNormalState()) {
-        elasticStiffness.at( 1, 1 ) = 0.;
+        // prevent instability by not using 0.
+        elasticStiffness.at( 1, 1 ) = 1.;
         return elasticStiffness;
     }
 
     if ( tr_f < 0.0 ) { // elastic
         return elasticStiffness;
     } else { // plastic loading
-        // set Et (comment out for better stability)
-        elasticStiffness.at(1, 1) = this->Et;
+        // set Et
+        // prevent negative Et values which may cause instability
+        elasticStiffness.at(1, 1 ) = max(this->Et,
+            min( 1., elasticStiffness.at( 1, 1 ) / 10000. ))            ;
         return elasticStiffness;
     }
 }

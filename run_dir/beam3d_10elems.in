@@ -13,7 +13,8 @@ Multiple beam3d element test
 #StaticStructural nsteps 40 profileopt 1 nmodules 2
 #nonlinearstatic nsteps 25 rtolv 1.e-8 MaxIter 5000 controllmode 1 stiffMode 1 renumber 1 updateelasticstiffnessflag manrmsteps 5 deltatfunction 4 nmodules 1
 # .:*:.
-StaticStructural nsteps 10 nmodules 0 manrmsteps 5
+StaticStructural nsteps 10 nmodules 0
+#StaticStructural nsteps 10 nmodules 0 manrmsteps 5
 #StaticStructural nsteps 300 nmodules 0 manrmsteps 5 profileopt 1
 #
 #StaticStructural nsteps 300 lstype 4 smtype 8 nmodules 0 manrmsteps 5
@@ -51,16 +52,16 @@ beam3d 7   nodes 2   7  8  refAngle 0
 beam3d 8   nodes 2   8  9  refAngle 0
 beam3d 9   nodes 2   9  10 refAngle 0
 beam3d 10  nodes 2   10 11 refAngle 0
-#beam3d 1   nodes 2   1  2  refnode 12 nip 5
-#beam3d 2   nodes 2   2  3  refnode 12 nip 5
-#beam3d 3   nodes 2   3  4  refnode 12 nip 5
-#beam3d 4   nodes 2   4  5  refnode 12 nip 5
-#beam3d 5   nodes 2   5  6  refnode 12 nip 5
-#beam3d 6   nodes 2   6  7  refnode 12 nip 5
-#beam3d 7   nodes 2   7  8  refnode 12 nip 5
-#beam3d 8   nodes 2   8  9  refnode 12 nip 5
-#beam3d 9   nodes 2   9  10 refnode 12 nip 5
-#beam3d 10  nodes 2   10 11 refnode 12 nip 5
+#libeam3d 1   nodes 2   1  2  refnode 12 nip 1
+#libeam3d 2   nodes 2   2  3  refnode 12 nip 1
+#libeam3d 3   nodes 2   3  4  refnode 12 nip 1
+#libeam3d 4   nodes 2   4  5  refnode 12 nip 1
+#libeam3d 5   nodes 2   5  6  refnode 12 nip 1
+#libeam3d 6   nodes 2   6  7  refnode 12 nip 1
+#libeam3d 7   nodes 2   7  8  refnode 12 nip 1
+#libeam3d 8   nodes 2   8  9  refnode 12 nip 1
+#libeam3d 9   nodes 2   9  10 refnode 12 nip 1
+#libeam3d 10  nodes 2   10 11 refnode 12 nip 1
 #rbsbeam3d 1   nodes 2   1  2  refAngle 0 nip 1
 #rbsbeam3d 2   nodes 2   2  3  refAngle 0 nip 1
 #rbsbeam3d 3   nodes 2   3  4  refAngle 0 nip 1
@@ -73,7 +74,10 @@ beam3d 10  nodes 2   10 11 refAngle 0
 #rbsbeam3d 10  nodes 2   10 11 refAngle 0 nip 1
 #
 # .: Section :.
-SimpleCS 1 area 200 Iy 1.389e5 Iz 1.389e5 Ik 1.e18 beamShearCoeff 1.e18 thick 1 material 1 set 3
+rbsFiberedCS 1  fibermaterials 4 1 1 1 1 thicks 4 1 1 1 1   widths 4 1 1 1 1  fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 3
+#FiberedCS 1 fibermaterials 4 1 1 1 1 thicks 4 1 1 1 1   widths 4 1 1 1 1  fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 3
+#SimpleCS 1 area 200 Iy 1.389e5 Iz 1.389e5 Ik 1.e6 beamShearCoeff 1.e18 thick 1 material 1 set 3
+#SimpleCS 1 area 200 Iy 1.389e5 Iz 1.389e5 Ik 1.e18 beamShearCoeff 1.e18 thick 1 material 1 set 3
 # (X) 3fib
 #FiberedCS 1 fibermaterials 3 1 1 1 thicks 3 1. 1. 1.   widths 3 1. 1. 1.  fiberycentrecoords 3 0.0 0.5 -0.5 fiberzcentrecoords 3 0.5 -0.5 -0.5 thick 1.7 width 1.7 set 3
 # (x) 3+1fib
@@ -82,7 +86,6 @@ SimpleCS 1 area 200 Iy 1.389e5 Iz 1.389e5 Ik 1.e18 beamShearCoeff 1.e18 thick 1 
 #FiberedCS 1 fibermaterials 4  1 1 1  1   thicks 4 1. 1. 1.  1.  widths 4 1. 1. 1.  1.  fiberycentrecoords 4 0.0 0.5 -.5  0.0   fiberzcentrecoords 4 0.5 -.5 -.5  0.0   thick 1.7 width 1.7 set 3
 # .:**:. (O) 4fib square
 #FiberedCS 1  fibermaterials 4 1 1 1 1 thicks 4 1 1 1 1   widths 4 1 1 1 1  fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 3
-#rbsFiberedCS 1  fibermaterials 4 1 1 1 1 thicks 4 1 1 1 1   widths 4 1 1 1 1  fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 3
 # (X) 4fib x2 square
 #FiberedCS 1  fibermaterials 8 1 1 1 1  1 1 1 1   thicks 8 1 1 1 1  1 1 1 1   widths 8 1 1 1 1  1 1 1 1  fiberycentrecoords 8 1 -1 -1 1  2 -2 -2 2 fiberzcentrecoords 8 1 1 -1 -1  2 2 -2 -2 thick 4 width 4 set 3
 #FiberedCS 1  fibermaterials 6  1 1 1 1 1 1   thicks 6  1. 1. 1. 1. 1. 1.   widths 6 1. 1. 1. 1. 1. 1.  fiberycentrecoords 6 -.25 -.5 -.25 .25 .5 .25  fiberzcentrecoords 6  1. -.25 -.5 -.5 -.25 1. thick 1.7 width 1.7 set 3
@@ -96,6 +99,7 @@ SimpleCS 1 area 200 Iy 1.389e5 Iz 1.389e5 Ik 1.e18 beamShearCoeff 1.e18 thick 1 
 #FiberedCS 1 fibermaterials 8  1 1 1 1  1 1 1 1  thicks 8  1 1 1 1  1 1 1 1   widths 8  1 1 1 1  1 1 1 1  fiberycentrecoords 8 2. 2. 2. 2. -2. -2. -2. -2.  fiberzcentrecoords 8  -2. -1. 1. 2. -2. -1. 1. 2.  thick 4 width 4 set 3
 #
 # .: Material :.
+#RBSConcrete1 1 d 1. E 30000 n 0. tAlpha 1.2e-5 fc 60.0 Et -10000.0
 isoLE 1 d 1. E 3.e4 n 0.2 tAlpha 1.2e-5
 #tutorialmaterial 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5 sigy 60.0 H -5000.0
 #MisesMat 1 d 1.0 E 3.e4 n 0.2 sig0 60.0 H -10000.0 omega_crit 0 a 0.1 tAlpha 1.0
@@ -103,11 +107,11 @@ isoLE 1 d 1. E 3.e4 n 0.2 tAlpha 1.2e-5
 #Steel1 1 d 0. E 15.e6 n 0.25 Ry 10.0  tAlpha 0.000012
 #
 # .: Displacement Control BC :.
-BoundaryCondition 1 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0. 0. 1.   0. 0. 1.  set 1
+BoundaryCondition 1 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0. 0. 10.   0. 0. 0.  set 1
 # .: Support BC :.
 BoundaryCondition 2 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0. 0. 0.    0. 0. 0.  set 2
 #
-PiecewiseLinFunction 1 nPoints 2 t 2 0. 100. f(t) 2 0. 1.
+PiecewiseLinFunction 1 nPoints 2 t 2 0. 10. f(t) 2 0. 1.
 #
 # .: Sets :.
 set 1 nodes 1 1
