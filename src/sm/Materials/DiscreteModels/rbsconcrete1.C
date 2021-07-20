@@ -98,6 +98,7 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
 
     //double J2 = this->computeSecondStressInvariant(devTrialStress);
 
+    // 1. Normal stress correction
     double trialNormalStress = trialStress.at( 1 );
 
     // evaluate the yield surface
@@ -168,9 +169,16 @@ RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp
         return elasticStiffness;
     } else { // plastic loading
         // set Et
-        // prevent negative Et values which may cause instability
-        elasticStiffness.at(1, 1 ) = max(this->Et,
-            min( 1., elasticStiffness.at( 1, 1 ) / 10000. ))            ;
+        // 1. use Et > 0 or small positive value
+        /*elasticStiffness.at(1, 1 ) = max(this->Et,
+            min( 1., elasticStiffness.at( 1, 1 ) / 10000. ));*/
+        // 2. use 1.
+        /*elasticStiffness.at(1, 1 ) = 1.;*/
+        // 3. use Et
+        /*elasticStiffness.at(1, 1 ) = this->Et;*/
+        // 4. use Et > 0 or Ee
+        elasticStiffness.at(1, 1 ) = this->Et > 0. ? this->Et : this->E;
+
         return elasticStiffness;
     }
 }
