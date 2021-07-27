@@ -87,6 +87,7 @@ FloatArrayF<6> RBSFiberedCrossSection::giveGeneralizedStress_Beam3d( const Float
     }
 
     FloatArrayF<6> answer;
+    double shearCoef = 2.;
 
     for ( int i = 1; i <= this->fiberMaterials.giveSize(); i++ ) {
         auto fiberGp = this->giveSlaveGaussPoint(gp, i - 1);
@@ -96,6 +97,9 @@ FloatArrayF<6> RBSFiberedCrossSection::giveGeneralizedStress_Beam3d( const Float
         double fiberWidth  = this->fiberWidths.at(i);
         double fiberYCoord = fiberGp->giveNaturalCoordinate(1);
         double fiberZCoord = fiberGp->giveNaturalCoordinate(2);
+
+        double fiberArea = fiberWidth * fiberThick;
+        double shearArea = shearCoef * fiberArea;
 
         interface->FiberedCrossSectionInterface_computeStrainVectorInFiber(fiberStrain, strain, fiberGp, tStep);
 
@@ -108,14 +112,14 @@ FloatArrayF<6> RBSFiberedCrossSection::giveGeneralizedStress_Beam3d( const Float
         //
 
         // 1) membrane terms N, Qz, Qy
-        answer.at(1) += reducedFiberStress.at(1) * fiberWidth * fiberThick;
-        answer.at(2) += reducedFiberStress.at(2) * fiberWidth * fiberThick;
-        answer.at(3) += reducedFiberStress.at(3) * fiberWidth * fiberThick;
+        answer.at(1) += reducedFiberStress.at(1) * fiberArea;
+        answer.at(2) += reducedFiberStress.at(2) * shearArea;
+        answer.at(3) += reducedFiberStress.at(3) * shearArea;
         // 2) bending terms Tx, My, Mz
-        answer.at(4) += reducedFiberStress.at(2) * fiberWidth * fiberThick * fiberYCoord
-                        - reducedFiberStress.at(3) * fiberWidth * fiberThick * fiberZCoord;
-        answer.at(5) += reducedFiberStress.at(1) * fiberWidth * fiberThick * fiberZCoord;
-        answer.at(6) -= reducedFiberStress.at(1) * fiberWidth * fiberThick * fiberYCoord;
+        answer.at(4) += reducedFiberStress.at(2) * fiberArea * fiberYCoord
+                      - reducedFiberStress.at(3) * fiberArea * fiberZCoord;
+        answer.at(5) += reducedFiberStress.at(1) * fiberArea * fiberZCoord;
+        answer.at(6) -= reducedFiberStress.at(1) * fiberArea * fiberYCoord;
     }
 
     // why only the first fiber's material is used to update the master Gauss point?
@@ -131,6 +135,7 @@ FloatMatrixF<6,6> RBSFiberedCrossSection::give3dBeamStiffMtrx(MatResponseMode rM
 //
 {
     double Ip = 0.0, A = 0.0, Ik, G = 0.0;
+    double shearCoef = 2.;
 
     FloatMatrixF<6,6> beamStiffness;
 
@@ -147,25 +152,28 @@ FloatMatrixF<6,6> RBSFiberedCrossSection::give3dBeamStiffMtrx(MatResponseMode rM
         double fiberYCoord2 = fiberYCoord * fiberYCoord;
         double fiberZCoord2 = fiberZCoord * fiberZCoord;
 
+        double fiberArea = fiberWidth * fiberThick;
+        double shearArea = shearCoef * fiberArea;
+
         // perform integration
 
         // 1) membrane terms N, Qz, Qy
 
-        beamStiffness.at(1, 1) += fiberMatrix.at(1, 1) * fiberWidth * fiberThick;
+        beamStiffness.at(1, 1) += fiberMatrix.at(1, 1) * fiberArea;
 
-        beamStiffness.at(2, 2) += fiberMatrix.at(2, 2) * fiberWidth * fiberThick;
+        beamStiffness.at(2, 2) += fiberMatrix.at(2, 2) * shearArea;
 
-        beamStiffness.at(3, 3) += fiberMatrix.at(3, 3) * fiberWidth * fiberThick;
+        beamStiffness.at(3, 3) += fiberMatrix.at(3, 3) * shearArea;
 
         // 2) bending terms Tx, My, Mz
 
-        Ip += fiberWidth * fiberThick * fiberZCoord2 + fiberWidth * fiberThick * fiberYCoord2;
-        A  += fiberWidth * fiberThick;
-        G  += fiberMatrix.at(2, 2) * fiberWidth * fiberThick;
+        Ip += fiberArea * fiberZCoord2 + fiberArea * fiberYCoord2;
+        A  += fiberArea;
+        G  += fiberMatrix.at(2, 2) * fiberArea;
         //GA = fiberMatrix.at(2, 2) * fiberWidth * fiberThick;
 
-        beamStiffness.at(5, 5) += fiberMatrix.at(1, 1) * fiberWidth * fiberThick * fiberZCoord2;
-        beamStiffness.at(6, 6) += fiberMatrix.at(1, 1) * fiberWidth * fiberThick * fiberYCoord2;
+        beamStiffness.at(5, 5) += fiberMatrix.at(1, 1) * fiberArea * fiberZCoord2;
+        beamStiffness.at(6, 6) += fiberMatrix.at(1, 1) * fiberArea * fiberYCoord2;
         //beamStiffness.at(4, 4) += GA * fiberZCoord2;
         //beamStiffness.at(4, 4) += GA * fiberYCoord2;
     }
