@@ -98,19 +98,26 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
 
     //double J2 = this->computeSecondStressInvariant(devTrialStress);
 
-    // 1. Normal stress correction
-    double trialNormalStress = trialStress.at( 1 );
-
-    // evaluate the yield surface
-    double k = status->giveK();
-    double sigma_y = this->sig0 + H * k;
-    double tr_f = trialNormalStress - sigma_y;
 
     FloatArrayF<6> stress;
     stress = trialStress;
 
+    auto plasticStrain = status->givePlasticStrain();
+    double k = status->giveK();
+    double ks1 = status->giveKs1();
+    double ks2 = status->giveKs2();
 
-    if ( status->giveNormalState() ) {
+    // 1. Normal stress correction
+
+    int normalState = status->giveNormalState();
+    double trialNormalStress = trialStress.at( 1 );
+
+    // evaluate the yield surface
+    double sigma_y = this->sig0 + H * k;
+    double tr_f = trialNormalStress - sigma_y;
+
+
+    if ( normalState ) {
         // damaged normal spring
         stress.at( 1 ) = 0;
     } else if ( tr_f <= 0.0 ) { // elastic
@@ -122,21 +129,93 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
         auto corNormalStress = trialNormalStress - E * dPlStrain;
         if ( corNormalStress < 0. ) {
             corNormalStress = 0.;
-            status->letTempNormalStateBe( 1 );
+            normalState = 1;
         }
         stress.at( 1 ) = corNormalStress;
         k += dPlStrain;
 
-        auto plasticStrain = status->givePlasticStrain();
+        //auto plasticStrain = status->givePlasticStrain();
         plasticStrain.at( 1 ) += dPlStrain;
         status->letTempPlasticStrainBe( plasticStrain );
     }
 
-    // Store the temporary values for the given iteration
+
+    // 2. Shear stress correction
+
+    double trialShearStress1 = trialStress.at( 5 );
+    double trialShearStress2 = trialStress.at( 6 );
+
+    if ( status->giveNormalState() ) {
+        // damaged normal spring
+        stress.at( 5 ) = 0;
+        stress.at( 6 ) = 0;
+    } else {
+        double G         = D.giveShearModulus();
+        double Gt        = G / 2;                 ///FIXME!
+        double Hs        = G * Gt / ( G - Gt );
+
+        // evaluate the yield surface
+
+        double sigma_ys1 = this->sig0 + Hs * ks1;
+        double tr_fs1 = fabs( trialShearStress1 ) - sigma_ys1;
+
+        double sigma_ys2 = this->sig0 + Hs * ks2;
+        double tr_fs2 = fabs( trialShearStress2 ) - sigma_ys2;
+
+        // Shear 1
+        if ( normalState ) { // normal spring just failed
+            stress.at( 5 ) = 0;
+        } else if ( tr_fs1 <= 0.0 ) { // elastic
+            status->letTempPlasticStrainBe( status->givePlasticStrain() );
+        } else { // plastic loading
+            double dPlStrain = tr_fs1 / ( G + Hs ); // plastic multiplier
+            // radial return
+            auto corShearStress = trialShearStress1 - sgn( trialShearStress1 ) * G * dPlStrain;
+            if (  Gt < 0 && corShearStress * trialShearStress1 < 0. ) {
+                corShearStress = 0.;
+                // make other shear springs
+                //normalState++; // shear failure cause normal failure
+            }
+            stress.at( 5 ) = corShearStress;
+            ks1 += dPlStrain;
+
+            //auto plasticStrain = status->givePlasticStrain();
+            plasticStrain.at( 5 ) += dPlStrain;
+            status->letTempPlasticStrainBe( plasticStrain );
+        }
+
+        // Shear 2
+        if ( normalState ) { // check again
+            stress.at( 6 ) = 0;
+        } else if ( tr_fs2 <= 0.0 ) { // elastic
+            status->letTempPlasticStrainBe( status->givePlasticStrain() );
+        } else { // plastic loading
+            double dPlStrain = tr_fs2 / ( G + Hs ); // plastic multiplier
+            // radial return
+            auto corShearStress = trialShearStress2 - sgn( trialShearStress2 ) * G * dPlStrain;
+            if (  Gt < 0 && corShearStress * trialShearStress2 < 0. ) {
+                corShearStress = 0.;
+                //stress.at( 5 ) = 0; // if other springs also fail
+                //normalState++;
+            }
+            stress.at( 6 ) = corShearStress;
+            ks2 += dPlStrain;
+
+            //auto plasticStrain = status->givePlasticStrain();
+            plasticStrain.at( 6 ) += dPlStrain;
+            status->letTempPlasticStrainBe( plasticStrain );
+        }
+    }
+
+
+    // 3. Store the temporary values for the given iteration
     status->letTempStrainVectorBe(totalStrain);
     status->letTempStressVectorBe(stress);
     status->letTempKBe(k);
+    status->letTempKs1Be(ks1);
+    status->letTempKs2Be(ks2);
     //status->letTempDevTrialStressBe(devTrialStress);
+    status->letTempNormalStateBe( normalState );
     return stress;
 }
 
@@ -146,29 +225,29 @@ RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp
 {
     auto status = static_cast< RBSConcrete1Status * >( this->giveStatus(gp) );
     double trialNormalStress    = status->giveStressVector().at( 1 );
+    double trialShearStress1    = status->giveStressVector().at( 5 );
+    double trialShearStress2    = status->giveStressVector().at( 6 );
 
-//    const auto &devTrialStress = status->giveTempDevTrialStress();
-//    double J2 = this->computeSecondStressInvariant(devTrialStress);
-//    double effectiveTrialStress = sqrt(3 * J2);
+    auto elasticStiffness = D.giveTangent();
 
+    double k = status->giveK();
+    double ks1 = status->giveKs1();
+    double ks2 = status->giveKs2();
+
+    double sigma_y = this->sig0 + H * k;
+
+    // 1. Normal spring
 
     // evaluate the yield surface
-    double k = status->giveK();
-    double sigma_y = this->sig0 + H * k;
     double tr_f = trialNormalStress - sigma_y;
-    
-    auto elasticStiffness = D.giveTangent();
 
     if(status->giveNormalState()) {
         // prevent instability by not using 0.
         elasticStiffness.at( 1, 1 ) = 1.;
-        return elasticStiffness;
-    }
-
-    if ( tr_f < 0.0 ) { // elastic
-        return elasticStiffness;
-    } else { // plastic loading
-        // set Et
+    } else if ( tr_f < 0.0 ) {
+        // elastic loading
+    } else {
+        // plastic loading: Et
         // 1. use Et > 0 or small positive value
         /*elasticStiffness.at(1, 1 ) = max(this->Et,
             min( 1., elasticStiffness.at( 1, 1 ) / 10000. ));*/
@@ -178,9 +257,43 @@ RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp
         /*elasticStiffness.at(1, 1 ) = this->Et;*/
         // 4. use Et > 0 or Ee
         elasticStiffness.at(1, 1 ) = this->Et > 0. ? this->Et : this->E;
-
-        return elasticStiffness;
     }
+
+    // 2. Shear springs
+
+    if ( status->giveNormalState() ) {
+        // damaged normal spring
+        elasticStiffness.at( 5, 5 ) = 1.;
+        elasticStiffness.at( 6, 6 ) = 1.;
+    } else {
+        double G         = D.giveShearModulus();
+        double Gt        = G / 2;                     ///FIXME!
+        double Hs        = G * Gt / ( G - Gt );       ///FIXME!
+
+        // evaluate the yield surface
+        double sigma_ys1 = this->sig0 + Hs * ks1;
+        double tr_fs1 = fabs( trialShearStress1 ) - sigma_ys1;
+        double sigma_ys2 = this->sig0 + Hs * ks2;
+        double tr_fs2 = fabs( trialShearStress2 ) - sigma_ys2;
+
+        // Shear 1
+        if ( tr_fs1 <= 0.0 ) {
+            // elastic loading
+        } else {
+            // plastic loading
+            elasticStiffness.at( 5, 5 ) = Gt > 0. ? Gt : G;
+        }
+
+        // Shear 2
+        if ( tr_fs2 <= 0.0 ) {
+            // elastic
+        } else {
+            // plastic loading
+            elasticStiffness.at( 6, 6 ) = Gt > 0. ? Gt : G;
+        }
+    }
+
+    return elasticStiffness;
 }
 
 
@@ -244,7 +357,9 @@ RBSConcrete1Status::updateYourself(TimeStep *tStep)
     StructuralMaterialStatus::updateYourself(tStep);
 
     plasticStrain = tempPlasticStrain;
-    k = tempK;
+    k   = tempK;
+    ks1 = tempKs1;
+    ks2 = tempKs2;
     normalState   = tempNormalState;
     // deviatoric trial stress is not really a state variable and was used not to repeat some code...
 }

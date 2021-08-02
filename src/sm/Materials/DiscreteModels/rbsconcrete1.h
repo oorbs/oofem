@@ -103,6 +103,12 @@ protected:
     double tempK = 0.;
     double k = 0.;
 
+    double tempKs1 = 0.;
+    double ks1 = 0.;
+
+    double tempKs2 = 0.;
+    double ks2 = 0.;
+
     int tempNormalState = 0;
     int normalState     = 0;
 
@@ -115,9 +121,17 @@ public:
 
     double giveK() const { return this->k; }
 
+    double giveKs1() const { return this->ks1; }
+
+    double giveKs2() const { return this->ks2; }
+
     double giveNormalState() const { return this->normalState; }
 
     void letTempKBe(double value) { tempK = value; }
+
+    void letTempKs1Be(double value) { tempKs1 = value; }
+
+    void letTempKs2Be(double value) { tempKs2 = value; }
 
     void letTempNormalStateBe(double value) { tempNormalState = value; }
 
