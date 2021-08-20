@@ -30,16 +30,18 @@ Zcoords
 
 #Input syntax:
 _PRIMARY KEYWORD : .
+beam3d
 BoundaryCondition
 LTRSpace
 FiberedCS
 isoLE
-tutorialmaterial
+libeam3d
 MisesMat
 node
 OutputManager
 PiecewiseLinFunction
 rbsmTetra
+tutorialmaterial
 simpleCS
 vtkxml
 _PRIMARY INPUT PARAM/OPTION : .
@@ -89,3 +91,6 @@ nodes
 material
 fiberMaterials
 loadTimeFunction
+refAngle
+refNode
+
