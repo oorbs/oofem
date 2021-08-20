@@ -1,13 +1,13 @@
-beam3d_4elems.out
+beam3d_4elems-2.out
 2-beam3d element & tutorialmaterial test
 StaticStructural nsteps 10 nmodules 0
 domain 3d
 OutputManager tstep_all dofman_all element_all
 ndofman 5 nelem 4 ncrosssect 1 nmat 1 nbc 3 nic 0 nltf 1 nset 4 nxfemman 0
-node 1     coords 3   1      0      0
-node 2     coords 3   0      0      1
-node 3     coords 3  -1      0      0
-node 4     coords 3   0      0     -1
+node 1     coords 3   2.5      0      0.866108
+node 2     coords 3   1.5      0      1.443513
+node 3     coords 3   0.5      0      0.866108
+node 4     coords 3   1.5      0      0.288703
 node 5     coords 3   0      10000  0
 #
 libeam3d 1   nodes 2  1 2   refNode 5    nip 1
@@ -19,15 +19,15 @@ libeam3d 4   nodes 2  4 1   refNode 5    nip 1
 #rbsbeam3d 2   nodes 2  2 3   refAngle 0   nip 1
 #
 # .: Section :.
-#SimpleCS 1 area 2.1213 Iy 10e10 Iz 0.795 Ik 1.591 beamShearCoeff 2. thick 1 material 1 set 3
+SimpleCS 1 area 1.732092 Iy 0.433 Iz 0.433 Ik 0.866 beamShearCoeff 1. thick 1 material 1 set 3
 #FiberedCS 1 beamShearCoeff 2. fibermaterials 4 1 1 1 1 thicks 4 .72824 .72824 .72824 .72824  widths 4  .72824 .72824 .72824 .72824 fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 3
-rbsFiberedCS 1 fibermaterials 4 1 1 1 1 thicks 4 .72824 .72824 .72824 .72824  widths 4  .72824 .72824 .72824 .72824 fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 3
+#rbsFiberedCS 1 fibermaterials 4 1 1 1 1 thicks 4 .72824 .72824 .72824 .72824  widths 4  .72824 .72824 .72824 .72824 fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 3
 #FiberedCS 1 fibermaterials 4 1 1 1 1 thicks 4 1 1 1 1   widths 4 1 1 1 1  fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 3
 #rbsFiberedCS 1 fibermaterials 4 1 1 1 1 thicks 4 1 1 1 1   widths 4 1 1 1 1  fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 3
 #
 # .: Material :.
-#IsoLE 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5
-RBSConcrete1 1 d 1. E 30000 n 0. tAlpha 1.2e-5 fc 60.0 Et -10000.0
+IsoLE 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5
+#RBSConcrete1 1 d 1. E 30000 n 0. tAlpha 1.2e-5 fc 60.0 Et -10000.0
 #MisesMat 1 d 1.0 E 30000. n 0. sig0 60. H -10000. omega_crit 0.5 a 0.5 tAlpha 1.0
 #tutorialmaterial 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5 sigy 60.0 H -30000.0
 #
