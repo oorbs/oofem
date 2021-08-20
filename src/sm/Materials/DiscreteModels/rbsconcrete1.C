@@ -86,10 +86,23 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
     auto thermalStrain = this->computeStressIndependentStrainVector_3d( gp, tStep, VM_Total );
     auto strain = totalStrain - thermalStrain;
 
-    auto trialElastStrain = strain - status->givePlasticStrain();
+    // subtract plastic strains
+    auto plasticStrain = status->givePlasticStrain();
+    FloatArrayF<6> trialElasticStrain;
+    for ( int i = 1; i <= 6; ++i ) {
+        trialElasticStrain.at( i ) = strain.at( i ) - sgn( strain.at( i ) ) * plasticStrain.at( i );
+    }
 
     const auto &elasticStiffness = D.giveTangent();
-    auto trialStress = dot(elasticStiffness, trialElastStrain);
+    auto trialStress = dot(elasticStiffness, trialElasticStrain );
+
+    double G         = D.giveShearModulus();
+
+
+    // Trial stresses
+    double trialNormalStress = trialStress.at( 1 );
+    double trialShearStress1 = trialStress.at( 5 );
+    double trialShearStress2 = trialStress.at( 6 );
 
     //auto [devTrialStress, meanTrialStress] = computeDeviatoricVolumetricSplit(); // c++17
     //auto tmp = computeDeviatoricVolumetricSplit(trialStress);
@@ -102,15 +115,14 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
     FloatArrayF<6> stress;
     stress = trialStress;
 
-    auto plasticStrain = status->givePlasticStrain();
     double k = status->giveK();
     double ks1 = status->giveKs1();
     double ks2 = status->giveKs2();
 
+
     // 1. Normal stress correction
 
     int normalState = status->giveNormalState();
-    double trialNormalStress = trialStress.at( 1 );
 
     // evaluate the yield surface
     double sigma_y = this->sig0 + H * k;
@@ -121,7 +133,7 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
         // damaged normal spring
         stress.at( 1 ) = 0;
     } else if ( tr_f <= 0.0 ) { // elastic
-        status->letTempPlasticStrainBe( status->givePlasticStrain() );
+        //status->letTempPlasticStrainBe( status->givePlasticStrain() );
     } else { // plastic loading
         double E         = D.giveYoungsModulus();
         double dPlStrain = tr_f / ( E + H ); // plastic multiplier
@@ -136,21 +148,18 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
 
         //auto plasticStrain = status->givePlasticStrain();
         plasticStrain.at( 1 ) += dPlStrain;
-        status->letTempPlasticStrainBe( plasticStrain );
+        //status->letTempPlasticStrainBe( plasticStrain );
     }
 
 
     // 2. Shear stress correction
-
-    double trialShearStress1 = trialStress.at( 5 );
-    double trialShearStress2 = trialStress.at( 6 );
 
     if ( status->giveNormalState() ) {
         // damaged normal spring
         stress.at( 5 ) = 0;
         stress.at( 6 ) = 0;
     } else {
-        double G         = D.giveShearModulus();
+        //double G         = D.giveShearModulus();
         double Gt        = G / 2;                 ///FIXME!
         double Hs        = G * Gt / ( G - Gt );
 
@@ -161,6 +170,7 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
 
         double sigma_ys2 = this->sig0 + Hs * ks2;
         double tr_fs2 = fabs( trialShearStress2 ) - sigma_ys2;
+
 
         // Shear 1
         if ( normalState ) { // normal spring just failed
@@ -181,14 +191,14 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
 
             //auto plasticStrain = status->givePlasticStrain();
             plasticStrain.at( 5 ) += dPlStrain;
-            status->letTempPlasticStrainBe( plasticStrain );
+            //status->letTempPlasticStrainBe( plasticStrain );
         }
 
         // Shear 2
         if ( normalState ) { // check again
             stress.at( 6 ) = 0;
         } else if ( tr_fs2 <= 0.0 ) { // elastic
-            status->letTempPlasticStrainBe( status->givePlasticStrain() );
+            //status->letTempPlasticStrainBe( plasticStrain );
         } else { // plastic loading
             double dPlStrain = tr_fs2 / ( G + Hs ); // plastic multiplier
             // radial return
@@ -203,7 +213,7 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
 
             //auto plasticStrain = status->givePlasticStrain();
             plasticStrain.at( 6 ) += dPlStrain;
-            status->letTempPlasticStrainBe( plasticStrain );
+            //status->letTempPlasticStrainBe( plasticStrain );
         }
     }
 
@@ -211,6 +221,7 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
     // 3. Store the temporary values for the given iteration
     status->letTempStrainVectorBe(totalStrain);
     status->letTempStressVectorBe(stress);
+    status->letTempPlasticStrainBe( plasticStrain );
     status->letTempKBe(k);
     status->letTempKs1Be(ks1);
     status->letTempKs2Be(ks2);
