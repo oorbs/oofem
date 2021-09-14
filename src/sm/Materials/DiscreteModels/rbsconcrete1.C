@@ -97,6 +97,7 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
     auto trialStress = dot(elasticStiffness, trialElasticStrain );
 
     double G         = D.giveShearModulus();
+    double shearCoef = 2.;
 
 
     // Trial stresses
@@ -160,15 +161,16 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
         stress.at( 6 ) = 0;
     } else {
         //double G         = D.giveShearModulus();
-        double Gt        = G / 2;                 ///FIXME!
-        double Hs        = G * Gt / ( G - Gt );
+        double Gt1       = G / 2;                 ///FIXME!
+        double Gt2       = 0;                     ///FIXME!
+        double Hs        = G * Gt1 / ( G - Gt1 );
 
         // evaluate the yield surface
 
-        double sigma_ys1 = this->sig0 + Hs * ks1;
+        double sigma_ys1 = this->sig0/shearCoef + Hs * ks1;
         double tr_fs1 = fabs( trialShearStress1 ) - sigma_ys1;
 
-        double sigma_ys2 = this->sig0 + Hs * ks2;
+        double sigma_ys2 = this->sig0/shearCoef + Hs * ks2;
         double tr_fs2 = fabs( trialShearStress2 ) - sigma_ys2;
 
 
@@ -181,7 +183,7 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
             double dPlStrain = tr_fs1 / ( G + Hs ); // plastic multiplier
             // radial return
             auto corShearStress = trialShearStress1 - sgn( trialShearStress1 ) * G * dPlStrain;
-            if (  Gt < 0 && corShearStress * trialShearStress1 < 0. ) {
+            if ( Gt1 < 0 && corShearStress * trialShearStress1 < 0. ) {
                 corShearStress = 0.;
                 // make other shear springs
                 //normalState++; // shear failure cause normal failure
@@ -203,7 +205,7 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
             double dPlStrain = tr_fs2 / ( G + Hs ); // plastic multiplier
             // radial return
             auto corShearStress = trialShearStress2 - sgn( trialShearStress2 ) * G * dPlStrain;
-            if (  Gt < 0 && corShearStress * trialShearStress2 < 0. ) {
+            if ( Gt1 < 0 && corShearStress * trialShearStress2 < 0. ) {
                 corShearStress = 0.;
                 //stress.at( 5 ) = 0; // if other springs also fail
                 //normalState++;
