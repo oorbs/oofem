@@ -1,6 +1,6 @@
 rtet_box.out
-rtet box
-StaticStructural nsteps 150 manrmsteps 400 nmodules 1 profileopt 1 maxiter 800 maxinc .1
+rtet box 1
+StaticStructural nsteps 150 nmodules 1 profileopt 1 manrmsteps 400 maxiter 300 maxinc .1
 #StaticStructural nsteps 20 nmodules 0 manrmsteps 20 profileopt 1 maxiter 500 lstype 4 smtype 8
 #possible options:
 #nonlinearstatic nsteps 40 deltat 1.0 MaxIter 100 controllmode 1 rtolv 1.e-3 profileopt 1 initialguess 0 nmodules 2
@@ -1237,7 +1237,7 @@ rbsmtetra 1363  nodes 4   6   46  12  63
 FiberedCS 1 fibermaterials 1 1 thicks 1 1.0 widths 1 1.0 fiberycentrecoords 1 0.0 fiberzcentrecoords 1 0.0 thick 1.0 width 1.0 set 3
 #Material
 #isoLE 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5
-RBSConcrete1 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5 fc 60.0 Et -500.0
+RBSConcrete1 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5 fc 15.0 Et -500.0
 #MisesMat 1 d 1.0 E 30000. n 0. sig0 60. H -100 omega_crit 0.1 a 0.1 tAlpha 1.0
 #tutorialmaterial 1 d 1. E 30000. n 0.000 tAlpha 1.2e-5 sigy 60.0 H -1000.
 #isoLE 2 d 1. E 1. n 0. tAlpha 1.2e-5

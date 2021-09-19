@@ -1,6 +1,7 @@
 rtet_multiple.out
 Multiple RBSM element test
 StaticStructural nsteps 100 nmodules 1
+#StaticStructural nsteps 150 nmodules 1 profileopt 1 manrmsteps 200 maxiter 300 maxinc .1
 # strs:1 prinStrs:2 Strn:4 prinStrn:5 Beam-F&M:7 beam-strn&crv:8 disp:12 | stype:0-2
 # Module 0: node data
 vtkxml tstep_all domain_all vars 1 12 stype 0
@@ -12,7 +13,7 @@ ndofman 5 nelem 2 ncrosssect 1 nmat 1 nbc 2 nic 0 nltf 1 nset 4 nxfemman 0
 node 5     coords 3   1      0      0
 node 6     coords 3  -1      0      0
 node 7     coords 3   0     -1      0
-node 8     coords 3   0      1.5      1
+node 8     coords 3   0      0      1
 node 9     coords 3   0      0     -1
 rbsmtetra 1   nodes 4   5 6 7 8
 rbsmtetra 2   nodes 4   7 6 5 9
@@ -26,12 +27,13 @@ FiberedCS 1   fibermaterials 3  1 1 1   thicks 3  1.0 1.0 1.0   widths 3  1.0 1.
 ##FiberedCS 1 fibermaterials 1 1 thicks 1 1.0 widths 1 1.0 fiberycentrecoords 1 0.0 fiberzcentrecoords 1 0.0 thick 1.0 width 1.0 set 3
 #
 # .: Material :.
+rbsConcrete1 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5 fc 20.0 Et -10000.0
 #isoLE 1 d 1. E 3.e4 n 0.2 tAlpha 1.2e-5
-tutorialmaterial 1 d 1. E 3.e4 n 0.2 tAlpha 1.2e-5 sigy 60.0 H 0.
+#tutorialmaterial 1 d 1. E 3.e4 n 0.2 tAlpha 1.2e-5 sigy 60.0 H 0.
 #MisesMat 1 d 1.0 E 2e11 n 0.3 sig0 500e6 H 8.456659619e8 omega_crit 0 a 0 tAlpha 1.0
 #
 # .: Displacement Control BC :.
-BoundaryCondition 1 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0.00 0.00 .005 .0 0.00 0.00  set 1
+BoundaryCondition 1 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  .002 .002 .000 .0 0.00 0.00  set 1
 BoundaryCondition 2 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0.00 0.00 0.00 .0 0.00 0.00  set 4
 # .: Support BC :.
 #BoundaryCondition 2 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0. 0. 0. 0. 0. 0.  set 2
@@ -50,5 +52,7 @@ Polyset 4 rtetcellsofnodes 1 9
 
 #%BEGIN_CHECK%
 ## check reactions
+#REACTION number 10 dof 1
+#REACTION number 10 dof 2
 #REACTION number 10 dof 3
 #%END_CHECK%
