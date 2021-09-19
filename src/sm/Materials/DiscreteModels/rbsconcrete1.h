@@ -112,6 +112,12 @@ protected:
     int tempNormalState = 0;
     int normalState     = 0;
 
+    int tempShearState1 = 0;
+    int shearState1     = 0;
+
+    int tempShearState2 = 0;
+    int shearState2     = 0;
+
 public:
     RBSConcrete1Status(GaussPoint * g);
 
@@ -127,6 +133,10 @@ public:
 
     double giveNormalState() const { return this->normalState; }
 
+    double giveShearState1() const { return this->shearState1; }
+
+    double giveShearState2() const { return this->shearState2; }
+
     void letTempKBe(double value) { tempK = value; }
 
     void letTempKs1Be(double value) { tempKs1 = value; }
@@ -134,6 +144,10 @@ public:
     void letTempKs2Be(double value) { tempKs2 = value; }
 
     void letTempNormalStateBe(double value) { tempNormalState = value; }
+
+    void letTempShearState1(int value) { tempShearState1 = value; }
+
+    void letTempShearState2(int value) { tempShearState2 = value; }
 
     void letTempDevTrialStressBe(const FloatArrayF<6> &values) { tempDevTrialStress = values; }
     const FloatArrayF<6> &giveTempDevTrialStress() const { return tempDevTrialStress; }

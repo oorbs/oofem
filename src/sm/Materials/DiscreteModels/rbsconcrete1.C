@@ -116,6 +116,9 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
     FloatArrayF<6> stress;
     stress = trialStress;
 
+    int normalState = status->giveNormalState();
+    int nKs1        = status->giveShearState1();
+    int nKs2        = status->giveShearState2();
     double k = status->giveK();
     double ks1 = status->giveKs1();
     double ks2 = status->giveKs2();
@@ -123,7 +126,6 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
 
     // 1. Normal stress correction
 
-    int normalState = status->giveNormalState();
 
     // evaluate the yield surface
     double sigma_y = this->sig0 + H * k;
@@ -161,18 +163,37 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
         stress.at( 6 ) = 0;
     } else {
         //double G         = D.giveShearModulus();
-        double Gt1       = G / 2;                 ///FIXME!
-        double Gt2       = 0;                     ///FIXME!
-        double Hs        = G * Gt1 / ( G - Gt1 );
+        double Gt01      = G / 2;                 ///FIXME!
+        double Gt02      = 0;                     ///FIXME!
+        double Hs        = G * Gt01 / ( G - Gt01 );
 
         // evaluate the yield surface
 
+        // Shear spring 1:
         double sigma_ys1 = this->sig0/shearCoef + Hs * ks1;
         double tr_fs1 = fabs( trialShearStress1 ) - sigma_ys1;
 
+        // Shear spring 2:
         double sigma_ys2 = this->sig0/shearCoef + Hs * ks2;
         double tr_fs2 = fabs( trialShearStress2 ) - sigma_ys2;
 
+        //  *** M U L T I L I N E A R ***
+        // Shear spring 1 multi-linear:
+        FloatArray sigma_k   = { this->sig0 / shearCoef, this->sig0, 0 };
+        FloatArray G_k       = { G, Gt01, Gt02 };
+        FloatArray eps_k( 3 ), epsP_k( 3 ), H_k( 3 );
+        eps_k( 0 )  = sigma_k( 0 ) / G_k( 0 );
+        epsP_k( 0 ) = 0;
+        for ( int i = 1; i < 2; ++i ) {
+            eps_k( i )  = eps_k( i - 1 ) + ( sigma_k( i ) - sigma_k( i - 1 ) ) / G_k( i );
+            epsP_k( i ) = eps_k( i  ) - sigma_k( i ) / G_k( 0 );
+            H_k( i - 1 ) = ( sigma_k( i ) - sigma_k( i - 1 ) ) / ( epsP_k( i ) - epsP_k( i - 1 ) );
+        }
+        eps_k( 2 )  = 1.e+16; // INFINITY
+        epsP_k( 2 ) = 1.e+16; // INFINITY
+        Hs        = H_k( nKs1 );
+        sigma_ys1 = sigma_k( nKs1 ) + Hs * (ks1 - epsP_k( nKs1 ));
+        tr_fs1    = fabs( trialShearStress1 ) - sigma_ys1;
 
         // Shear 1
         if ( normalState ) { // normal spring just failed
@@ -183,13 +204,29 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
             double dPlStrain = tr_fs1 / ( G + Hs ); // plastic multiplier
             // radial return
             auto corShearStress = trialShearStress1 - sgn( trialShearStress1 ) * G * dPlStrain;
-            if ( Gt1 < 0 && corShearStress * trialShearStress1 < 0. ) {
+            if ( Gt01 < 0 && corShearStress * trialShearStress1 < 0. ) {
                 corShearStress = 0.;
                 // make other shear springs
                 //normalState++; // shear failure cause normal failure
             }
-            stress.at( 5 ) = corShearStress;
             ks1 += dPlStrain;
+
+            // this can be a loop but it is deliberately avoided
+            if ( ks1 > epsP_k( nKs1 + 1) ) {
+                nKs1++;
+                // re-correction of stress
+                Hs        = H_k( nKs1 );
+                sigma_ys1 = sigma_k( nKs1 ) + Hs * (ks1 - epsP_k( nKs1 ));
+                tr_fs1    = fabs( corShearStress ) - sigma_ys1;
+                dPlStrain = tr_fs1 / ( G + Hs );
+                corShearStress = corShearStress - sgn( trialShearStress1 ) * G * dPlStrain;
+                if ( sgn( trialShearStress1 ) * sgn( corShearStress ) < 0 ) {
+                    OOFEM_ERROR( "Invalid shear stress for spring S1" )
+                }
+                ks1 += dPlStrain;
+            }
+
+            stress.at( 5 ) = corShearStress;
 
             //auto plasticStrain = status->givePlasticStrain();
             plasticStrain.at( 5 ) += dPlStrain;
@@ -205,7 +242,7 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
             double dPlStrain = tr_fs2 / ( G + Hs ); // plastic multiplier
             // radial return
             auto corShearStress = trialShearStress2 - sgn( trialShearStress2 ) * G * dPlStrain;
-            if ( Gt1 < 0 && corShearStress * trialShearStress2 < 0. ) {
+            if ( Gt01 < 0 && corShearStress * trialShearStress2 < 0. ) {
                 corShearStress = 0.;
                 //stress.at( 5 ) = 0; // if other springs also fail
                 //normalState++;
@@ -226,7 +263,9 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
     status->letTempPlasticStrainBe( plasticStrain );
     status->letTempKBe(k);
     status->letTempKs1Be(ks1);
+    status->letTempShearState1(nKs1);
     status->letTempKs2Be(ks2);
+    status->letTempShearState2(nKs2);
     //status->letTempDevTrialStressBe(devTrialStress);
     status->letTempNormalStateBe( normalState );
     return stress;
@@ -374,6 +413,8 @@ RBSConcrete1Status::updateYourself(TimeStep *tStep)
     ks1 = tempKs1;
     ks2 = tempKs2;
     normalState   = tempNormalState;
+    shearState1   = tempShearState1;
+    shearState2   = tempShearState2;
     // deviatoric trial stress is not really a state variable and was used not to repeat some code...
 }
 
