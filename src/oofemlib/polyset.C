@@ -71,6 +71,13 @@ void Polyset::initializeFrom(InputRecord &ir)
         IR_GIVE_FIELD( ir, inputNodes, _IFT_Polyset_rtetCellsOfGeoNodes );
         this->cellNodesOfGeoNodes( this->nodes, inputNodes );
     }
+
+    // print postprocess hint
+    OOFEM_LOG_INFO( "\n** USE THE FOLLOWING INFORMATION TO POSTPROCESS %s NUM %d:",
+        this->giveClassName(), this->giveNumber() );
+    for ( int i = 0; i < this->nodes.giveSize(); ++i ) {
+        OOFEM_LOG_INFO( "\n#REACTION number %d dof 3", this->nodes[i] );
+    }
 }
 
 
