@@ -67,9 +67,19 @@ void Polyset::initializeFrom(InputRecord &ir)
         IR_GIVE_FIELD( ir, inputNodes, _IFT_Polyset_rtetClonesOfGeoNodes );
         this->clonesOfGeoNodes( this->nodes, inputNodes );
     }
-    if ( ir.hasField(_IFT_Polyset_rtetCellsOfGeoNodes) ) {
+    if ( ir.hasField( _IFT_Polyset_rtetCellsOfGeoNodes ) ) {
+        int minAssociations;
+        if ( ir.hasField( _IFT_Polyset_minAssociations ) ) {
+            IR_GIVE_FIELD( ir, minAssociations, _IFT_Polyset_minAssociations );
+        } else {
+            minAssociations = 0;
+        }
         IR_GIVE_FIELD( ir, inputNodes, _IFT_Polyset_rtetCellsOfGeoNodes );
-        this->cellNodesOfGeoNodes( this->nodes, inputNodes );
+        if ( minAssociations > 0 ) {
+            this->cellNodesOfGeoNodes( this->nodes, inputNodes, minAssociations );
+        } else {
+            this->cellNodesOfGeoNodes( this->nodes, inputNodes );
+        }
     }
 
     // print postprocess hint
@@ -127,6 +137,32 @@ void Polyset::cellNodesOfGeoNodes( IntArray &answer, const IntArray &nodes )
         std::set<int> cellsNodesNumber = this->cellNodesOfGeoNode( node );
         for ( int globalNumber : cellsNodesNumber ) {
             answer.insertSortedOnce( globalNumber );
+        }
+    }
+}
+void Polyset::cellNodesOfGeoNodes( IntArray &answer, const IntArray &nodes, const int minAssoc )
+{
+    // Find the cell nodes;
+    for ( auto node : nodes ) {
+        // find elements
+        std::set<int> cellElements = RBSMTetra::giveCellElementsOfGeoNode( node );
+        // for each element get geo-nodes
+        for ( int e : cellElements ) {
+            int count = 0;
+            std::set<int> cellElementGeoNodes;
+            RBSMTetra *elem =
+                dynamic_cast<RBSMTetra *>( domain->elementList[e - 1].get() );
+            if ( elem ) {
+                for ( int geoNode : elem->giveGeoNodes() ) {
+                    cellElementGeoNodes.insert( geoNode );
+                    if (nodes.contains(geoNode)) {
+                        count++;
+                    }
+                }
+                if(count>minAssoc){
+                    answer.insertSortedOnce( elem->giveCellDofmanagerNumber() );
+                }
+            }
         }
     }
 }
