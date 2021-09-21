@@ -45,10 +45,10 @@ PiecewiseLinFunction 1 nPoints 2 t 2 0. 100. f(t) 2 0. 1.
 #Polyset 4 rtetclonesofnodes 4 5 6 7 8
 #
 #set 1 nodes 1 8
-Polyset 1 rtetcellsofnodes 1 8
+Polyset 1 minAssociations 1 rtetcellsofnodes 1 8
 Set 2 nodes 3 5 6 7
 Set 3 elements 2 1 2
-Polyset 4 rtetcellsofnodes 1 9
+Polyset 4  minAssociations 1  rtetcellsofnodes 1 9
 
 #%BEGIN_CHECK%
 ## check reactions
