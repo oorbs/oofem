@@ -49,6 +49,7 @@ namespace oofem {
 #define _IFT_Polyset_Name "polyset"
 #define _IFT_Polyset_rtetClonesOfGeoNodes "rtetclonesofnodes" ///< List of clone-nodes of rigid tet from input mesh nodes
 #define _IFT_Polyset_rtetCellsOfGeoNodes  "rtetcellsofnodes"  ///< List of center-nodes of rigid tet from input mesh nodes
+#define _IFT_Polyset_minAssociations      "minassociations"  ///< Minimum number of associated nodes to include in the set
 /*
 #define _IFT_Set_nodes "nodes" ///< List of specific node indices.
 #define _IFT_Set_allNodes "allnodes" ///< List of specific node indices.
@@ -200,6 +201,7 @@ protected:
      * (mesh) nodes
      */
     void cellNodesOfGeoNodes(IntArray &answer, const IntArray &nodes);
+    void cellNodesOfGeoNodes(IntArray &answer, const IntArray &nodes, const int minAssoc);
 };
 }
 

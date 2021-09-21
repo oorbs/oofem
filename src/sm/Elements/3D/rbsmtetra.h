@@ -107,6 +107,9 @@ public:
     /// @returns index number of rigid body cell central node
     int giveCellDofmanagerNumber() { return centerDofmanager; }
 
+    /// @returns index number of geometry nodes
+    IntArray giveGeoNodes() { return geoNodes; }
+
     /**
      * calculates distance of the fiber zone centroid from facet centroid
      * @param nFacet the number of targeted facet of the element
