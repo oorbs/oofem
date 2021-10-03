@@ -118,6 +118,9 @@ FloatArrayF<6> RBSFiberedCrossSection::giveGeneralizedStress_Beam3d( const Float
         // 2) bending terms Tx, My, Mz
         answer.at(4) += reducedFiberStress.at(2) * fiberArea * fiberYCoord
                       - reducedFiberStress.at(3) * fiberArea * fiberZCoord;
+#if 0 // assign zero strain to ignore the effect of torsion
+        answer.at(4) = 0;
+#endif
         answer.at(5) += reducedFiberStress.at(1) * fiberArea * fiberZCoord;
         answer.at(6) -= reducedFiberStress.at(1) * fiberArea * fiberYCoord;
     }
@@ -170,17 +173,24 @@ FloatMatrixF<6,6> RBSFiberedCrossSection::give3dBeamStiffMtrx(MatResponseMode rM
         Ip += fiberArea * fiberZCoord2 + fiberArea * fiberYCoord2;
         A  += fiberArea;
         G  += fiberMatrix.at(2, 2) * fiberArea;
-        //GA = fiberMatrix.at(2, 2) * fiberWidth * fiberThick;
 
         beamStiffness.at(5, 5) += fiberMatrix.at(1, 1) * fiberArea * fiberZCoord2;
         beamStiffness.at(6, 6) += fiberMatrix.at(1, 1) * fiberArea * fiberYCoord2;
-        //beamStiffness.at(4, 4) += GA * fiberZCoord2;
-        //beamStiffness.at(4, 4) += GA * fiberYCoord2;
+
+        /*
+        double GA = fiberMatrix.at(2, 2) * fiberArea;
+        beamStiffness.at(4, 4) += GA * fiberZCoord2;
+        beamStiffness.at(4, 4) += GA * fiberYCoord2;
+         */
     }
 
     G /= A;
     Ik = A * A * A * A / ( 40.0 * Ip );
     beamStiffness.at(4, 4) = G * Ik;
+
+#if 0 // assign a small stiffness for torsion to ignore this effect
+    beamStiffness.at(4, 4) = 0.001;
+#endif
     return beamStiffness;
 }
 

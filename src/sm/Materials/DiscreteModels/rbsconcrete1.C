@@ -165,13 +165,14 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
         //double G         = D.giveShearModulus();
         double Gt01      = G / 2;                 ///FIXME!
         double Gt02      = 0;                     ///FIXME!
-        double Hs        = G * Gt01 / ( G - Gt01 );
+        double Hs        =0;
 
         // evaluate the yield surface
 
         // Shear spring 1:
-        double sigma_ys1 = this->sig0/shearCoef + Hs * ks1;
-        double tr_fs1 = fabs( trialShearStress1 ) - sigma_ys1;
+        double sigma_ys1, tr_fs1;
+        // sigma_ys1 = this->sig0/shearCoef + Hs * ks1;
+        // tr_fs1 = fabs( trialShearStress1 ) - sigma_ys1;
 
         // Shear spring 2:
         double sigma_ys2 = this->sig0/shearCoef + Hs * ks2;
@@ -234,6 +235,8 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
         }
 
         // Shear 2
+        //Hs = G * Gt01 / ( G - Gt01 );
+        Hs = 0.;
         if ( normalState ) { // check again
             stress.at( 6 ) = 0;
         } else if ( tr_fs2 <= 0.0 ) { // elastic
@@ -255,7 +258,6 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
             //status->letTempPlasticStrainBe( plasticStrain );
         }
     }
-
 
     // 3. Store the temporary values for the given iteration
     status->letTempStrainVectorBe(totalStrain);

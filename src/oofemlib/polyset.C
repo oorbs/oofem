@@ -59,11 +59,11 @@ REGISTER_Set(Polyset);
 
 void Polyset::initializeFrom(InputRecord &ir)
 {
-    FEMComponent::initializeFrom(ir);
-    Set::initializeFrom(ir);
+    FEMComponent::initializeFrom( ir );
+    Set::initializeFrom( ir );
 
     IntArray inputNodes;
-    if ( ir.hasField(_IFT_Polyset_rtetClonesOfGeoNodes) ) {
+    if ( ir.hasField( _IFT_Polyset_rtetClonesOfGeoNodes ) ) {
         IR_GIVE_FIELD( ir, inputNodes, _IFT_Polyset_rtetClonesOfGeoNodes );
         this->clonesOfGeoNodes( this->nodes, inputNodes );
     }
@@ -83,11 +83,12 @@ void Polyset::initializeFrom(InputRecord &ir)
     }
 
     // print postprocess hint
-    OOFEM_LOG_INFO( "\n** USE THE FOLLOWING INFORMATION TO POSTPROCESS %s NUM %d:",
+    OOFEM_LOG_INFO( "** USE THE FOLLOWING INFORMATION TO POSTPROCESS %s NUM %d: \n",
         this->giveClassName(), this->giveNumber() );
     for ( int i = 0; i < this->nodes.giveSize(); ++i ) {
-        OOFEM_LOG_INFO( "\n#REACTION number %d dof 3", this->nodes[i] );
+        OOFEM_LOG_INFO( "#REACTION number %d dof 3 \n", this->nodes[i] );
     }
+    OOFEM_LOG_INFO( "** \n");
 }
 
 
@@ -149,17 +150,17 @@ void Polyset::cellNodesOfGeoNodes( IntArray &answer, const IntArray &nodes, cons
         // for each element get geo-nodes
         for ( int e : cellElements ) {
             int count = 0;
-            std::set<int> cellElementGeoNodes;
+            // std::set<int> cellElementGeoNodes;
             RBSMTetra *elem =
                 dynamic_cast<RBSMTetra *>( domain->elementList[e - 1].get() );
             if ( elem ) {
                 for ( int geoNode : elem->giveGeoNodes() ) {
-                    cellElementGeoNodes.insert( geoNode );
-                    if (nodes.contains(geoNode)) {
+                    // cellElementGeoNodes.insert( geoNode );
+                    if ( nodes.contains( geoNode ) ) {
                         count++;
                     }
                 }
-                if(count>minAssoc){
+                if ( count >= minAssoc ) {
                     answer.insertSortedOnce( elem->giveCellDofmanagerNumber() );
                 }
             }
