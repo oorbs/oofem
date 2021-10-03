@@ -9,23 +9,14 @@ vtkxml tstep_all domain_all vars 1 12 stype 0
 #vtkxml tstep_all domain_all cellvars 7 1 2 4 5 7 8 12
 domain 3d
 OutputManager tstep_all dofman_all element_all
-ndofman 8 nelem 5 ncrosssect 1 nmat 1 nbc 2 nic 0 nltf 1 nset 4 nxfemman 0
-node 5     coords 3   1     +1      0
-node 6     coords 3  -1     +1      0
+ndofman 5 nelem 2 ncrosssect 1 nmat 1 nbc 2 nic 0 nltf 1 nset 4 nxfemman 0
+node 5     coords 3   1      0      0
+node 6     coords 3  -1      0      0
 node 7     coords 3   0     -1      0
 node 8     coords 3   0      0      1
 node 9     coords 3   0      0     -1
-# corner nodes
-node 10     coords 3 -2     -1     -1
-node 11     coords 3  2     -1     -1
-node 12     coords 3  0     +2     -1
-#
 rbsmtetra 1   nodes 4   5 6 7 8
 rbsmtetra 2   nodes 4   7 6 5 9
-# corner elements
-rbsmtetra 3   nodes 4   6 7 9 10
-rbsmtetra 4   nodes 4   5 7 9 11
-rbsmtetra 5   nodes 4   6 5 9 12
 #negative volume:
 #ltrspace 2   nodes 4   5 6 7 9
 #
@@ -42,10 +33,10 @@ rbsConcrete1 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5 fc 20.0 Et -10000.0
 #MisesMat 1 d 1.0 E 2e11 n 0.3 sig0 500e6 H 8.456659619e8 omega_crit 0 a 0 tAlpha 1.0
 #
 # .: Displacement Control BC :.
-BoundaryCondition 1 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  .000 .000 -.01 0.00 0.00 0.00  set 1
-BoundaryCondition 2 loadTimeFunction 1  dofs 4      3 4 5 6  values 4  0.00 0.00 0.00 0.00            set 4
-#BoundaryCondition 2 loadTimeFunction 1  dofs 3  1 2 3        values 3  0.00 0.00 0.00                 set 4
-#BoundaryCondition 2 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0.00 0.00 0.00 .000 0.00 0.00  set 4
+BoundaryCondition 1 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  .002 .002 .000 .0 0.00 0.00  set 1
+BoundaryCondition 2 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0.00 0.00 0.00 .0 0.00 0.00  set 4
+# .: Support BC :.
+#BoundaryCondition 2 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0. 0. 0. 0. 0. 0.  set 2
 #
 PiecewiseLinFunction 1 nPoints 2 t 2 0. 100. f(t) 2 0. 1.
 #
@@ -56,12 +47,12 @@ PiecewiseLinFunction 1 nPoints 2 t 2 0. 100. f(t) 2 0. 1.
 #set 1 nodes 1 8
 Polyset 1 minAssociations 1 rtetcellsofnodes 1 8
 Set 2 nodes 3 5 6 7
-Set 3 elements 5 1 2 3 4 5
-Polyset 4  minAssociations 1  rtetcellsofnodes 3  10 11 12
+Set 3 elements 2 1 2
+Polyset 4  minAssociations 1  rtetcellsofnodes 1 9
 
 #%BEGIN_CHECK%
 ## check reactions
-#REACTION number 13 dof 1
-#REACTION number 13 dof 2
-#REACTION number 13 dof 3
+#REACTION number 10 dof 1
+#REACTION number 10 dof 2
+#REACTION number 10 dof 3
 #%END_CHECK%
