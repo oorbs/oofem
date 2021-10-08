@@ -14,6 +14,8 @@ Multiple beam3d element test
 #nonlinearstatic nsteps 25 rtolv 1.e-8 MaxIter 5000 controllmode 1 stiffMode 1 renumber 1 updateelasticstiffnessflag manrmsteps 5 deltatfunction 4 nmodules 1
 # .:*:.
 StaticStructural nsteps 10 nmodules 0
+#linearstatic nsteps 10 nmodules 0
+#
 #StaticStructural nsteps 10 nmodules 0 manrmsteps 5
 #StaticStructural nsteps 300 nmodules 0 manrmsteps 5 profileopt 1
 #
@@ -42,16 +44,16 @@ node 10    coords 3   10     0      10
 node 11    coords 3   0      10     0
 node 12    coords 3   0      0     0
 #
-beam3d 1   nodes 2   1  2  refAngle 0
-beam3d 2   nodes 2   2  3  refAngle 0
-beam3d 3   nodes 2   3  4  refAngle 0
-beam3d 4   nodes 2   4  5  refAngle 0
-beam3d 5   nodes 2   5  6  refAngle 0
-beam3d 6   nodes 2   6  7  refAngle 0
-beam3d 7   nodes 2   7  8  refAngle 0
-beam3d 8   nodes 2   8  9  refAngle 0
-beam3d 9   nodes 2   9  10 refAngle 0
-beam3d 10  nodes 2   10 11 refAngle 0
+#beam3d 1   nodes 2   1  2  refAngle 0
+#beam3d 2   nodes 2   2  3  refAngle 0
+#beam3d 3   nodes 2   3  4  refAngle 0
+#beam3d 4   nodes 2   4  5  refAngle 0
+#beam3d 5   nodes 2   5  6  refAngle 0
+#beam3d 6   nodes 2   6  7  refAngle 0
+#beam3d 7   nodes 2   7  8  refAngle 0
+#beam3d 8   nodes 2   8  9  refAngle 0
+#beam3d 9   nodes 2   9  10 refAngle 0
+#beam3d 10  nodes 2   10 11 refAngle 0
 #libeam3d 1   nodes 2   1  2  refnode 12 nip 1
 #libeam3d 2   nodes 2   2  3  refnode 12 nip 1
 #libeam3d 3   nodes 2   3  4  refnode 12 nip 1
@@ -62,16 +64,16 @@ beam3d 10  nodes 2   10 11 refAngle 0
 #libeam3d 8   nodes 2   8  9  refnode 12 nip 1
 #libeam3d 9   nodes 2   9  10 refnode 12 nip 1
 #libeam3d 10  nodes 2   10 11 refnode 12 nip 1
-#rbsbeam3d 1   nodes 2   1  2  refAngle 0 nip 1
-#rbsbeam3d 2   nodes 2   2  3  refAngle 0 nip 1
-#rbsbeam3d 3   nodes 2   3  4  refAngle 0 nip 1
-#rbsbeam3d 4   nodes 2   4  5  refAngle 0 nip 1
-#rbsbeam3d 5   nodes 2   5  6  refAngle 0 nip 1
-#rbsbeam3d 6   nodes 2   6  7  refAngle 0 nip 1
-#rbsbeam3d 7   nodes 2   7  8  refAngle 0 nip 1
-#rbsbeam3d 8   nodes 2   8  9  refAngle 0 nip 1
-#rbsbeam3d 9   nodes 2   9  10 refAngle 0 nip 1
-#rbsbeam3d 10  nodes 2   10 11 refAngle 0 nip 1
+rbsbeam3d 1   nodes 2   1  2  refAngle 0 nip 1
+rbsbeam3d 2   nodes 2   2  3  refAngle 0 nip 1
+rbsbeam3d 3   nodes 2   3  4  refAngle 0 nip 1
+rbsbeam3d 4   nodes 2   4  5  refAngle 0 nip 1
+rbsbeam3d 5   nodes 2   5  6  refAngle 0 nip 1
+rbsbeam3d 6   nodes 2   6  7  refAngle 0 nip 1
+rbsbeam3d 7   nodes 2   7  8  refAngle 0 nip 1
+rbsbeam3d 8   nodes 2   8  9  refAngle 0 nip 1
+rbsbeam3d 9   nodes 2   9  10 refAngle 0 nip 1
+rbsbeam3d 10  nodes 2   10 11 refAngle 0 nip 1
 #
 # .: Section :.
 rbsFiberedCS 1  fibermaterials 4 1 1 1 1 thicks 4 1 1 1 1   widths 4 1 1 1 1  fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 3
@@ -115,8 +117,8 @@ PiecewiseLinFunction 1 nPoints 2 t 2 0. 10. f(t) 2 0. 1.
 #
 # .: Sets :.
 set 1 nodes 1 1
-Set 2 nodes 1 11
-Set 3 allElements
+set 2 nodes 1 11
+set 3 allElements
 
 #%BEGIN_CHECK%
 #REACTION number 1 dof 1

@@ -137,7 +137,7 @@ FloatArrayF<6> RBSFiberedCrossSection::giveGeneralizedStress_Beam3d( const Float
 FloatMatrixF<6,6> RBSFiberedCrossSection::give3dBeamStiffMtrx(MatResponseMode rMode, GaussPoint *gp, TimeStep *tStep) const
 //
 {
-    double Ip = 0.0, A = 0.0, Ik, G = 0.0;
+    //double Ip = 0.0, A = 0.0, Ik, G = 0.0;
     double shearCoef = 2.;
 
     FloatMatrixF<6,6> beamStiffness;
@@ -170,27 +170,24 @@ FloatMatrixF<6,6> RBSFiberedCrossSection::give3dBeamStiffMtrx(MatResponseMode rM
 
         // 2) bending terms Tx, My, Mz
 
-        Ip += fiberArea * fiberZCoord2 + fiberArea * fiberYCoord2;
-        A  += fiberArea;
-        G  += fiberMatrix.at(2, 2) * fiberArea;
+        //Ip += fiberArea * fiberZCoord2 + fiberArea * fiberYCoord2;
+        //A  += fiberArea;
+        //G  += fiberMatrix.at(2, 2) * fiberArea;
 
+        // Moment stiffness
         beamStiffness.at(5, 5) += fiberMatrix.at(1, 1) * fiberArea * fiberZCoord2;
         beamStiffness.at(6, 6) += fiberMatrix.at(1, 1) * fiberArea * fiberYCoord2;
 
-        /*
-        double GA = fiberMatrix.at(2, 2) * fiberArea;
-        beamStiffness.at(4, 4) += GA * fiberZCoord2;
-        beamStiffness.at(4, 4) += GA * fiberYCoord2;
-         */
+        // Torsional stiffness
+        beamStiffness.at(4, 4) +=
+            fiberMatrix.at(2, 2) * (fiberZCoord2 + fiberYCoord2) * fiberArea;
+        //*/
     }
 
-    G /= A;
-    Ik = A * A * A * A / ( 40.0 * Ip );
-    beamStiffness.at(4, 4) = G * Ik;
+    //G /= A;
+    //Ik = A * A * A * A / ( 40.0 * Ip );
+    //beamStiffness.at(4, 4) = G * Ik;
 
-#if 0 // assign a small stiffness for torsion to ignore this effect
-    beamStiffness.at(4, 4) = 0.001;
-#endif
     return beamStiffness;
 }
 

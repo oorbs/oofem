@@ -4,8 +4,8 @@ StaticStructural nsteps 30 nmodules 0
 domain 3d
 OutputManager tstep_all dofman_all element_all
 ndofman 4 nelem 2 ncrosssect 1 nmat 1 nbc 2 nic 0 nltf 1 nset 3 nxfemman 0
-node 1     coords 3   0      0      100
-node 2     coords 3   50      0      50
+node 1     coords 3   0      50      100
+node 2     coords 3   50    -50      50
 #node 2     coords 3   0      0      50
 node 3     coords 3   0      0      0
 node 4     coords 3   0      100    0
@@ -13,24 +13,24 @@ node 4     coords 3   0      100    0
 #beam3d 1   nodes 2  1 2   refAngle 0    nip 1
 #beam3d 2   nodes 2  2 3   refAngle 45   nip 1
 # to try Mindlin element
-libeam3d 1   nodes 2  1 2   refNode 4    nip 1
-libeam3d 2   nodes 2  2 3   refNode 4    nip 1
+#libeam3d 1   nodes 2  1 2   refNode 4    nip 1
+#libeam3d 2   nodes 2  2 3   refNode 4    nip 1
 # to try new beam element
-#rbsbeam3d 1   nodes 2  1 2   refAngle 0   nip 1
-#rbsbeam3d 2   nodes 2  2 3   refAngle 0   nip 1
+rbsbeam3d 1   nodes 2  1 2   refAngle 0    nip 1
+rbsbeam3d 2   nodes 2  2 3   refAngle 30   nip 1
 #
 # .: Section :.
 FiberedCS 1 fibermaterials 4 1 1 1 1 thicks 4 1 1 1 1   widths 4 1 1 1 1  fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 3
 #rbsFiberedCS 1 fibermaterials 4 1 1 1 1 thicks 4 1 1 1 1   widths 4 1 1 1 1  fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 3
 #
 # .: Material :.
-RBSConcrete1 1 d 1. E 30000 n 0. tAlpha 1.2e-5 fc 60.0 Et -10000.0
+#RBSConcrete1 1 d 1. E 30000 n 0. tAlpha 1.2e-5 fc 60.0 Et -10000.0
 #MisesMat 1 d 1.0 E 30000. n 0. sig0 60. H -10000. omega_crit 0.5 a 0.5 tAlpha 1.0
 #tutorialmaterial 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5 sigy 60.0 H -30000.0
-#IsoLE 1 d 1. E 3.e4 n 0.2 tAlpha 1.2e-5
+IsoLE 1 d 1. E 3.e4 n 0.2 tAlpha 1.2e-5
 #
 # .: Displacement Control BC :.
-BoundaryCondition 1 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0. 0. 5.   0. 0. 0.  set 1
+BoundaryCondition 1 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0. 0. 5.   0.1 -0.1 0.1  set 1
 # .: Support BC :.
 BoundaryCondition 2 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0. 0. 0.   0. 0. 0.  set 2
 #
