@@ -29,7 +29,7 @@ Set 2 nodes 1 1
 Set 3 nodes 1 2
 
 #%BEGIN_CHECK% tolerance 1.e-5
-## check reaction
+## check reactions
 #REACTION tStep 10 number 2 dof 1 value 0.0
 #REACTION tStep 10 number 2 dof 2 value 0.0
 #REACTION tStep 10 number 2 dof 3 value 0.0

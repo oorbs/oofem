@@ -1,6 +1,6 @@
 beam3d.out
 fibered cross-section consistency check
-StaticStructural nsteps 10 nmodules 0 initialGuess 0
+StaticStructural nsteps 20 nmodules 0 initialGuess 0
 #
 ## .: VTK :.
 ## strs:1 prinStrs:2 Strn:4 prinStrn:5 Beam-F&M:7 beam-strn&crv:8 disp:12 | stype:0-2
@@ -22,27 +22,29 @@ rbsmBeam3d 1  nodes 2  1 2 refNode 3   nip 1
 #
 # .: Section :.
 #SimpleCS 1 area 200 Iy 1.389e5 Iz 1.389e5 Ik 1.e6 beamShearCoeff 1.e18 thick 1 material 1 set 1
-rbsFiberedCS 1 fibermaterials 4 1 1 1 1 thicks 4 1 1 1 1   widths 4 1 1 1 1  fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 1
+rbsFiberedCS 1 fibermaterials 1 1 thicks 1 1   widths 1 1  fiberycentrecoords 1 0 fiberzcentrecoords 1 0 thick 1 width 1 set 1
+#rbsFiberedCS 1 fibermaterials 4 1 1 1 1 thicks 4 1 1 1 1   widths 4 1 1 1 1  fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 1
 #FiberedCS 1 fibermaterials 4 1 1 1 1 thicks 4 1 1 1 1   widths 4 1 1 1 1  fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 1
 #rbsFiberedCS 1 fibermaterials 4 1 1 1 1 thicks 4 .72824 .72824 .72824 .72824  widths 4  .72824 .72824 .72824 .72824 fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 1
 #
 # .: Material :.
-IsoLE 1 d 1. E 3.e4 n 0.2 tAlpha 1.2e-5
+#IsoLE 1 d 1. E 3.e4 n 0.2 tAlpha 1.2e-5
 #tutorialmaterial 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5 sigy 60.0 H -10000.0
-#rbsConcrete1 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5 fc 60.0 Et -10000.0
+rbsConcrete1 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5 fc 60.0 Et -10000.0
 #MisesMat 1 d 1.0 E 3.e4 n 0.0000 sig0 60 H -10000. omega_crit 0 a 0. tAlpha 1.2e-5
 #
 ## .: BC :.
 ## < BC Bending>
 #BoundaryCondition 1 loadTimeFunction 1  dofs 4  1 2 3 5 values 4  0. 0. 0. 0.1  set 2
 #BoundaryCondition 2 loadTimeFunction 1  dofs 4  1 2 3 5 values 4  0. 0. 0. -.1  set 3
-#BoundaryCondition 1 loadTimeFunction 1  dofs 6  1 2 3 4 5 6 values 6  0. -.8 0. 0. 0. 0.  set 2
-#BoundaryCondition 2 loadTimeFunction 1  dofs 6  1 2 3 4 5 6 values 6  0.  0. 0. 0. 0. 0.  set 3# < BC Pulling>
+## < BC Shear>
+BoundaryCondition 1 loadTimeFunction 1  dofs 6  1 2 3 4 5 6 values 6  0. -.8 -.8  0.  0.  0.   set 2
+BoundaryCondition 2 loadTimeFunction 1  dofs 6  1 2 3 4 5 6 values 6  0.  0.  0.  0.  0.  0.   set 3
 ## < BC force>
-NodalLoad 1 loadTimeFunction 1 dofs 6 1 2 3 4 5 6 components 6 0.0 0.0 0.0  10. 0. 0. set 2
-BoundaryCondition 2 loadTimeFunction 1  dofs 6  1 2 3 4 5 6 values 6  0.  0. 0. 0. 0. 0.  set 3
+#NodalLoad 1 loadTimeFunction 1 dofs 6 1 2 3 4 5 6 components 6 0.0 0.0 0.0  10. 0. 0. set 2
+#BoundaryCondition 2 loadTimeFunction 1  dofs 6  1 2 3 4 5 6 values 6  0.  0. 0. 0. 0. 0.  set 3
 #
-PiecewiseLinFunction 1 nPoints 2 t 2 0. 10. f(t) 2 0. 1.
+PiecewiseLinFunction 1 nPoints 2 t 2 0. 20. f(t) 2 0. 1.
 Set 1 allelements
 Set 2 nodes 1 1
 Set 3 nodes 1 2
