@@ -181,7 +181,7 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
 
         //  *** M U L T I L I N E A R  S H E A R ***
         // Shear spring 1 multi-linear:
-        int maxNK = 3; // number of nonlinear stages
+        int maxNK = 4; // number of multilinear stages
         // stresses & hardening
         FloatArray sigma_k( maxNK ), G_k( maxNK );
         // strains and plastic modulus
@@ -206,6 +206,9 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
         }
         eps_k( maxNK )  = 1.e+16; // INFINITY
         epsP_k( maxNK ) = 1.e+16; // INFINITY
+        H_k( maxNK ) = 0.;
+        // *** ***
+
         sigma_ys1 = sigma_k( nKs1 ) + H_k( nKs1 ) * (ks1 - epsP_k( nKs1 ));
         tr_fs1    = fabs( trialShearStress1 ) - sigma_ys1;
 
@@ -220,8 +223,8 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
             auto corShearStress = trialShearStress1 - sgn( trialShearStress1 ) * G * dPlStrain;
             if ( G_k( nKs1 ) < 0 && corShearStress * trialShearStress1 < 0. ) {
                 corShearStress = 0.;
-                // update other shear springs
-                // normalState++; // shear failure cause normal failure
+                // shear failure cause normal failure
+                //normalState++;
             }
             ks1 += dPlStrain;
             plasticStrain.at( 5 ) += dPlStrain;
@@ -347,7 +350,8 @@ RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp
             // elastic loading
         } else {
             // plastic loading
-            elasticStiffness.at( 5, 5 ) = Gt > 0. ? Gt : G;
+            elasticStiffness.at( 5, 5 ) = Gt > 0. ? Gt : G; ///FIXME**************************
+            /// make the Gt a property and use it to judge the tangent modulus
         }
 
         // Shear 2
