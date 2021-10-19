@@ -38,8 +38,8 @@ rbsConcrete1 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5 fc 60.0 Et -10000.0
 #BoundaryCondition 1 loadTimeFunction 1  dofs 4  1 2 3 5 values 4  0. 0. 0. 0.1  set 2
 #BoundaryCondition 2 loadTimeFunction 1  dofs 4  1 2 3 5 values 4  0. 0. 0. -.1  set 3
 ## < BC Shear>
-BoundaryCondition 1 loadTimeFunction 1  dofs 6  1 2 3 4 5 6 values 6  0. -.8 -.8  0.  0.  0.   set 2
-BoundaryCondition 2 loadTimeFunction 1  dofs 6  1 2 3 4 5 6 values 6  0.  0.  0.  0.  0.  0.   set 3
+BoundaryCondition 1 loadTimeFunction 1  dofs 6  1 2 3 4 5 6 values 6  0. -3.2 -3.2  0.  0.  0.   set 2
+BoundaryCondition 2 loadTimeFunction 1  dofs 6  1 2 3 4 5 6 values 6  0.  0.0  0.0  0.  0.  0.   set 3
 ## < BC force>
 #NodalLoad 1 loadTimeFunction 1 dofs 6 1 2 3 4 5 6 components 6 0.0 0.0 0.0  10. 0. 0. set 2
 #BoundaryCondition 2 loadTimeFunction 1  dofs 6  1 2 3 4 5 6 values 6  0.  0. 0. 0. 0. 0.  set 3

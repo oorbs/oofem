@@ -65,6 +65,22 @@ protected:
 
     /// Initial (uniaxial) yield stress.
     double sig0 = 0.;
+    double ft   = 0.;
+
+    //  *** M U L T I L I N E A R  S H E A R ***
+    /// number of multilinear stages
+    static const int maxNK = 4;
+    /// shear coefficient
+    double shearCoef = 0.;
+    /// elastic shear modulus
+    double G;
+    /// shear stresses (sigma) & hardening (Gt)
+    FloatArray sigma_k, G_k;
+    //FloatArrayF<maxNK> sigma_k, G_k;
+    /// elastic & plastic strains (eps, epsP) & plastic modulus (H)
+    FloatArray eps_k, epsP_k, H_k;
+    //FloatArrayF<maxNK+1> eps_k, epsP_k, H_k;
+
 
     IsotropicLinearElasticMaterial D;
 

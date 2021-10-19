@@ -31,6 +31,8 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Woverloaded-virtual"
 #include "rbsconcrete1.h"
 #include "gausspoint.h"
 #include "floatmatrix.h"
@@ -39,6 +41,7 @@
 #include "classfactory.h"
 #include "sm/Elements/structuralelement.h"
 #include "mathfem.h"
+#pragma clang diagnostic pop
 
 namespace oofem {
 REGISTER_Material(RBSConcrete1);
@@ -58,6 +61,42 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
 
     this->E = this->D.giveYoungsModulus();
     this->H = E * Et / ( E - Et );
+
+    this->shearCoef = 2.;
+    this->G       = D.giveShearModulus();
+
+    sigma_k.resize(maxNK);
+    G_k.resize( maxNK );
+    eps_k.resize( maxNK + 1 );
+    epsP_k.resize( maxNK + 1 );
+    H_k.resize( maxNK + 1 );
+
+    // shear yield stress
+    this->sigma_k = {
+        this->sig0 / shearCoef * .333333,
+        this->sig0 / shearCoef * .666667,
+        this->sig0 / shearCoef,
+        0.
+    };
+
+    ///TODO: this one should be inside the status since it depends on GP
+    // nonlinear shear (hardening/softening) moduli
+    this->G_k = { G, G / 2., G / 4., -G / 10. };
+    // calculate other multilinear specifications
+    eps_k( 0 )  = sigma_k( 0 ) / G_k( 0 );
+    epsP_k( 0 ) = 0;
+    for ( int i = 1; i < maxNK; ++i ) {
+        eps_k( i )  = eps_k( i - 1 ) + ( sigma_k( i ) - sigma_k( i - 1 ) ) / G_k( i );
+        epsP_k( i ) = eps_k( i  ) - sigma_k( i ) / G_k( 0 );
+        if ( eps_k( i ) != eps_k( i ) || epsP_k( i ) != epsP_k( i ) ){
+            OOFEM_ERROR("Unable to calculate concrete yield stress due to divide to zero error.")
+        }
+        H_k( i - 1 ) = ( sigma_k( i ) - sigma_k( i - 1 ) ) / ( epsP_k( i ) - epsP_k( i - 1 ) );
+    }
+    eps_k( maxNK )  = 1.e+16; // INFINITY
+    epsP_k( maxNK ) = 1.e+16; // INFINITY
+    H_k( maxNK ) = 0.;
+    //
 }
 
 
@@ -96,55 +135,44 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
     const auto &elasticStiffness = D.giveTangent();
     auto trialStress = dot(elasticStiffness, trialElasticStrain );
 
-    double G         = D.giveShearModulus();
-    double shearCoef = 2.;
-
-
     // Trial stresses
     double trialNormalStress = trialStress.at( 1 );
     double trialShearStress1 = trialStress.at( 5 );
     double trialShearStress2 = trialStress.at( 6 );
 
     //auto [devTrialStress, meanTrialStress] = computeDeviatoricVolumetricSplit(); // c++17
-    //auto tmp = computeDeviatoricVolumetricSplit(trialStress);
-    //auto devTrialStress = tmp.first;
-    //auto meanTrialStress = tmp.second;
-
     //double J2 = this->computeSecondStressInvariant(devTrialStress);
-
 
     FloatArrayF<6> stress;
     stress = trialStress;
 
-    int normalState = status->giveNormalState(); //nKn0
+    /// Spring nonlinear curve state
+    int nKn0        = status->giveNormalState();
     int nKs1        = status->giveShearState1();
     int nKs2        = status->giveShearState2();
     double k = status->giveK();
     double ks1 = status->giveKs1();
     double ks2 = status->giveKs2();
 
-
     // 1. Normal stress correction
 
-
     // evaluate the yield surface
-    double sigma_y = this->sig0 + H * k;
+    double sigma_y = this->sig0 + H * k;    ///fixme!
     double tr_f = trialNormalStress - sigma_y;
 
-
-    if ( normalState ) {
+    if ( nKn0 ) {
         // damaged normal spring
         stress.at( 1 ) = 0;
     } else if ( tr_f <= 0.0 ) { // elastic
         //status->letTempPlasticStrainBe( status->givePlasticStrain() );
     } else { // plastic loading
-        double E         = D.giveYoungsModulus();
-        double dPlStrain = tr_f / ( E + H ); // plastic multiplier
+        // plastic strain inc.
+        double dPlStrain = tr_f / ( E + H );
         // radial return
         auto corNormalStress = trialNormalStress - E * dPlStrain;
         if ( corNormalStress < 0. ) {
             corNormalStress = 0.;
-            normalState = 1;
+            nKn0            = 1;
         }
         stress.at( 1 ) = corNormalStress;
         k += dPlStrain;
@@ -162,115 +190,89 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
         stress.at( 5 ) = 0;
         stress.at( 6 ) = 0;
     } else {
-        //double G         = D.giveShearModulus();
-        double Gt01      = G / 2.;                 ///FIXME!
-        double Gt02      = G / 4;                  ///FIXME!
-        double Gt03      = -G / 10.;               ///FIXME!
-
-        // evaluate the yield surface
-
         // Shear spring 1:
-        double sigma_ys1, tr_fs1;
-        // sigma_ys1 = this->sig0/shearCoef + Hs * ks1;
-        // tr_fs1 = fabs( trialShearStress1 ) - sigma_ys1;
-
-        // Shear spring 2:
-        double sigma_ys2, tr_fs2;
-        sigma_ys2 = this->sig0/shearCoef + 0. * ks2; // Hs = 0.
-        tr_fs2 = fabs( trialShearStress2 ) - sigma_ys2;
-
-        //  *** M U L T I L I N E A R  S H E A R ***
-        // Shear spring 1 multi-linear:
-        int maxNK = 4; // number of multilinear stages
-        // stresses & hardening
-        FloatArray sigma_k( maxNK ), G_k( maxNK );
-        // strains and plastic modulus
-        FloatArray eps_k( maxNK + 1 ), epsP_k( maxNK + 1 ), H_k( maxNK + 1 );
-        // yield stress
-        sigma_k   = {
-            this->sig0 / shearCoef * .333333,
-            this->sig0 /  shearCoef *.666667,
-            this->sig0 / shearCoef,
-            0 };
-        // nonlinear shear moduli
-        G_k       = { G, Gt01, Gt02, Gt03 };
-        eps_k( 0 )  = sigma_k( 0 ) / G_k( 0 );
-        epsP_k( 0 ) = 0;
-        for ( int i = 1; i < maxNK; ++i ) {
-            eps_k( i )  = eps_k( i - 1 ) + ( sigma_k( i ) - sigma_k( i - 1 ) ) / G_k( i );
-            epsP_k( i ) = eps_k( i  ) - sigma_k( i ) / G_k( 0 );
-            if ( eps_k( i ) != eps_k( i ) || epsP_k( i ) != epsP_k( i ) ){
-                OOFEM_ERROR("Unable to calculate concrete yield stress due to divide to zero error.")
-            }
-            H_k( i - 1 ) = ( sigma_k( i ) - sigma_k( i - 1 ) ) / ( epsP_k( i ) - epsP_k( i - 1 ) );
-        }
-        eps_k( maxNK )  = 1.e+16; // INFINITY
-        epsP_k( maxNK ) = 1.e+16; // INFINITY
-        H_k( maxNK ) = 0.;
-        // *** ***
-
-        sigma_ys1 = sigma_k( nKs1 ) + H_k( nKs1 ) * (ks1 - epsP_k( nKs1 ));
-        tr_fs1    = fabs( trialShearStress1 ) - sigma_ys1;
-
-        // Shear 1
-        if ( normalState ) { // if normal spring has failed, there is no shear stress
-            stress.at( 5 ) = 0;
-        } else if ( tr_fs1 <= 0.0 ) { // elastic
-            //status->letTempPlasticStrainBe( status->givePlasticStrain() );
-        } else { // plastic loading
-            double dPlStrain = tr_fs1 / ( G + H_k( nKs1 ) ); // plastic multiplier
-            // radial return
-            auto corShearStress = trialShearStress1 - sgn( trialShearStress1 ) * G * dPlStrain;
-            if ( G_k( nKs1 ) < 0 && corShearStress * trialShearStress1 < 0. ) {
-                corShearStress = 0.;
-                // shear failure cause normal failure
-                //normalState++;
-            }
-            ks1 += dPlStrain;
-            plasticStrain.at( 5 ) += dPlStrain;
-
-            // this can be a loop but it is deliberately avoided
-            if ( ks1 > epsP_k( nKs1 + 1) ) {
-                nKs1++;
-                // Evaluate new yield stress from extra plastic strain
-                sigma_ys1 = sigma_k( nKs1 ) + H_k( nKs1 ) * (ks1 - epsP_k( nKs1 ));
-                tr_fs1    = fabs( corShearStress ) - sigma_ys1;
-                // Calculate complimentary part of plastic strain
-                dPlStrain = tr_fs1 / ( G + H_k( nKs1 ) );
-                corShearStress = corShearStress - sgn( corShearStress ) * G * dPlStrain;
-                if ( sgn( trialShearStress1 ) * sgn( corShearStress ) < 0 ) {
-                    OOFEM_ERROR( "Invalid shear stress for spring S1" )
+        {
+            double sigma_ys1, tr_fs1;
+            sigma_ys1 = sigma_k( nKs1 ) + H_k( nKs1 ) * ( ks1 - epsP_k( nKs1 ) );   ///fixme!
+            tr_fs1    = fabs( trialShearStress1 ) - sigma_ys1;
+            //
+            if ( nKn0 ) { // if normal spring has failed, there is no shear stress
+                stress.at( 5 ) = 0;
+            } else if ( tr_fs1 <= 0.0 ) { // elastic
+                // status->letTempPlasticStrainBe( status->givePlasticStrain() );
+            } else { // plastic loading
+                double dPlStrain = tr_fs1 / ( G + H_k( nKs1 ) ); // plastic multiplier
+                // radial return
+                auto corShearStress = trialShearStress1 - sgn( trialShearStress1 ) * G * dPlStrain;
+                if ( G_k( nKs1 ) < 0 && corShearStress * trialShearStress1 < 0. ) {
+                    corShearStress = 0.;
+                    // shear failure cause normal failure
+                    // normalState++;
                 }
-
                 ks1 += dPlStrain;
                 plasticStrain.at( 5 ) += dPlStrain;
-            }
 
-            stress.at( 5 ) = corShearStress;
+                // this can be a loop but it is deliberately avoided
+                if ( ks1 > epsP_k( nKs1 + 1 ) ) {
+                    nKs1++;
+                    // Evaluate new yield stress from extra plastic strain
+                    sigma_ys1 = sigma_k( nKs1 ) + H_k( nKs1 ) * ( ks1 - epsP_k( nKs1 ) );
+                    tr_fs1    = fabs( corShearStress ) - sigma_ys1;
+                    // Calculate complimentary part of plastic strain
+                    dPlStrain      = tr_fs1 / ( G + H_k( nKs1 ) );
+                    corShearStress = corShearStress - sgn( corShearStress ) * G * dPlStrain;
+                    if ( sgn( trialShearStress1 ) * sgn( corShearStress ) < 0 ) {
+                        OOFEM_WARNING( "Invalid shear stress for spring S1" );
+                    }
+
+                    ks1 += dPlStrain;
+                    plasticStrain.at( 5 ) += dPlStrain;
+                }
+
+                stress.at( 5 ) = corShearStress;
+            }
         }
-
         // Shear 2
-        //Hs = G * Gt01 / ( G - Gt01 );
-        double Hs = 0.;
-        if ( normalState ) { // check again
-            stress.at( 6 ) = 0;
-        } else if ( tr_fs2 <= 0.0 ) { // elastic
-            //status->letTempPlasticStrainBe( plasticStrain );
-        } else { // plastic loading
-            double dPlStrain = tr_fs2 / ( G + Hs ); // plastic multiplier
-            // radial return
-            auto corShearStress = trialShearStress2 - sgn( trialShearStress2 ) * G * dPlStrain;
-            if ( Gt01 < 0 && corShearStress * trialShearStress2 < 0. ) {
-                corShearStress = 0.;
-                //stress.at( 5 ) = 0; // if other springs also fail
-                //normalState++;
-            }
-            stress.at( 6 ) = corShearStress;
-            ks2 += dPlStrain;
+        {
+            double sigma_ys2, tr_fs2;
+            sigma_ys2 = sigma_k( nKs2 ) + H_k( nKs2 ) * ( ks2 - epsP_k( nKs2 ) );
+            tr_fs2    = fabs( trialShearStress2 ) - sigma_ys2;
+            //
+            if ( nKn0 ) { // if normal spring has failed, there is no shear stress
+                stress.at( 6 ) = 0;
+            } else if ( tr_fs2 <= 0.0 ) { // elastic
+                // status->letTempPlasticStrainBe( status->givePlasticStrain() );
+            } else { // plastic loading
+                double dPlStrain = tr_fs2 / ( G + H_k( nKs2 ) ); // plastic multiplier
+                // radial return
+                auto corShearStress = trialShearStress2 - sgn( trialShearStress2 ) * G * dPlStrain;
+                if ( G_k( nKs2 ) < 0 && corShearStress * trialShearStress2 < 0. ) {
+                    corShearStress = 0.;
+                    // shear failure cause normal failure
+                    // normalState++;
+                }
+                ks2 += dPlStrain;
+                plasticStrain.at( 6 ) += dPlStrain;
 
-            //auto plasticStrain = status->givePlasticStrain();
-            plasticStrain.at( 6 ) += dPlStrain;
-            //status->letTempPlasticStrainBe( plasticStrain );
+                // this can be a loop but it is deliberately avoided
+                if ( ks2 > epsP_k( nKs2 + 1 ) ) {
+                    nKs2++;
+                    // Evaluate new yield stress from extra plastic strain
+                    sigma_ys2 = sigma_k( nKs2 ) + H_k( nKs2 ) * ( ks2 - epsP_k( nKs2 ) );
+                    tr_fs2    = fabs( corShearStress ) - sigma_ys2;
+                    // Calculate complimentary part of plastic strain
+                    dPlStrain      = tr_fs2 / ( G + H_k( nKs2 ) );
+                    corShearStress = corShearStress - sgn( corShearStress ) * G * dPlStrain;
+                    if ( sgn( trialShearStress2 ) * sgn( corShearStress ) < 0 ) {
+                        OOFEM_ERROR( "Invalid shear stress for spring S2" );
+                    }
+
+                    ks2 += dPlStrain;
+                    plasticStrain.at( 6 ) += dPlStrain;
+                }
+
+                stress.at( 6 ) = corShearStress;
+            }
         }
     }
 
@@ -284,7 +286,7 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
     status->letTempKs2Be(ks2);
     status->letTempShearState2(nKs2);
     //status->letTempDevTrialStressBe(devTrialStress);
-    status->letTempNormalStateBe( normalState );
+    status->letTempNormalStateBe( nKn0 );
     return stress;
 }
 
@@ -300,9 +302,6 @@ RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp
     auto elasticStiffness = D.giveTangent();
 
     double k = status->giveK();
-    double ks1 = status->giveKs1();
-    double ks2 = status->giveKs2();
-
     double sigma_y = this->sig0 + H * k;
 
     // 1. Normal spring
@@ -312,7 +311,7 @@ RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp
 
     if(status->giveNormalState()) {
         // prevent instability by not using 0.
-        elasticStiffness.at( 1, 1 ) = 1.;
+        elasticStiffness.at( 1, 1 ) = 1.; // almost zero
     } else if ( tr_f < 0.0 ) {
         // elastic loading
     } else {
@@ -332,34 +331,32 @@ RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp
 
     if ( status->giveNormalState() ) {
         // damaged normal spring
-        elasticStiffness.at( 5, 5 ) = 1.;
-        elasticStiffness.at( 6, 6 ) = 1.;
+        elasticStiffness.at( 5, 5 ) = 1.;   // almost zero
+        elasticStiffness.at( 6, 6 ) = 1.;   // almost zero
     } else {
-        double G         = D.giveShearModulus();
-        double Gt        = G / 2;                     ///FIXME!
-        double Hs        = G * Gt / ( G - Gt );       ///FIXME!
-
-        // evaluate the yield surface
-        double sigma_ys1 = this->sig0 + Hs * ks1;
+        int nKs1        = status->giveShearState1();
+        int nKs2        = status->giveShearState2();
+        double ks1 = status->giveKs1();
+        double ks2 = status->giveKs2();
+        //double sigma_ys1 = this->sig0 + Hs1 * ks1;
+        double sigma_ys1 = sigma_k( nKs1 ) + H_k( nKs1 ) * ( ks1 - epsP_k( nKs1 ) );       ///FIXME!
         double tr_fs1 = fabs( trialShearStress1 ) - sigma_ys1;
-        double sigma_ys2 = this->sig0 + Hs * ks2;
+        double sigma_ys2 = sigma_k( nKs2 ) + H_k( nKs2 ) * ( ks2 - epsP_k( nKs2 ) );       ///FIXME!
         double tr_fs2 = fabs( trialShearStress2 ) - sigma_ys2;
 
         // Shear 1
-        if ( tr_fs1 <= 0.0 ) {
-            // elastic loading
-        } else {
-            // plastic loading
-            elasticStiffness.at( 5, 5 ) = Gt > 0. ? Gt : G; ///FIXME**************************
-            /// make the Gt a property and use it to judge the tangent modulus
+        if ( tr_fs1 <= 0.0 ) { // elastic loading
+            // continue
+        } else { // plastic loading;
+            // use Gt for hardening (faster convergence) and elastic G for softening (avoid divergence)
+            elasticStiffness.at( 5, 5 ) = this->G_k(nKs1) > 0. ? this->G_k(nKs1) : G;
         }
 
         // Shear 2
-        if ( tr_fs2 <= 0.0 ) {
-            // elastic
-        } else {
-            // plastic loading
-            elasticStiffness.at( 6, 6 ) = Gt > 0. ? Gt : G;
+        if ( tr_fs2 <= 0.0 ) { // elastic loading
+            // continue
+        } else { // plastic loading
+            elasticStiffness.at( 6, 6 ) = this->G_k(nKs2) > 0. ? this->G_k(nKs2) : G;
         }
     }
 
