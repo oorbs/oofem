@@ -77,9 +77,12 @@ protected:
     /// shear stresses (sigma) & hardening (Gt)
     FloatArray sigma_k, G_k;
     //FloatArrayF<maxNK> sigma_k, G_k;
-    /// elastic & plastic strains (eps, epsP) & plastic modulus (H)
-    FloatArray eps_k, epsP_k, H_k;
-    //FloatArrayF<maxNK+1> eps_k, epsP_k, H_k;
+    /// elastic & plastic strains (eps, epsP)
+    FloatArray eps_k, epsP_k;
+    /// plastic modulus (H)
+    FloatArray H_k;
+    //FloatArrayF<maxNK+1> eps_k, epsP_k;
+    //FloatArrayF<maxNK> H_k;
 
 
     IsotropicLinearElasticMaterial D;

@@ -42,6 +42,7 @@
 #include "sm/Elements/structuralelement.h"
 #include "mathfem.h"
 #pragma clang diagnostic pop
+#define ZERO 1.E-7
 
 namespace oofem {
 REGISTER_Material(RBSConcrete1);
@@ -67,21 +68,21 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
 
     sigma_k.resize(maxNK);
     G_k.resize( maxNK );
+    H_k.resize( maxNK );
     eps_k.resize( maxNK + 1 );
     epsP_k.resize( maxNK + 1 );
-    H_k.resize( maxNK + 1 );
 
     // shear yield stress
     this->sigma_k = {
-        this->sig0 / shearCoef * .333333,
-        this->sig0 / shearCoef * .666667,
-        this->sig0 / shearCoef,
+        this->sig0 / shearCoef * 0.5,
+        this->sig0 / shearCoef * 1.0,
+        this->sig0 / shearCoef * 0.5,
         0.
     };
 
     ///TODO: this one should be inside the status since it depends on GP
     // nonlinear shear (hardening/softening) moduli
-    this->G_k = { G, G / 2., G / 4., -G / 10. };
+    this->G_k = { G, G / 2., -G / 4., -G / 8. };
     // calculate other multilinear specifications
     eps_k( 0 )  = sigma_k( 0 ) / G_k( 0 );
     epsP_k( 0 ) = 0;
@@ -95,7 +96,7 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
     }
     eps_k( maxNK )  = 1.e+16; // INFINITY
     epsP_k( maxNK ) = 1.e+16; // INFINITY
-    H_k( maxNK ) = 0.;
+    H_k( maxNK - 1 ) = 0.;
     //
 }
 
@@ -139,6 +140,19 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
     double trialNormalStress = trialStress.at( 1 );
     double trialShearStress1 = trialStress.at( 5 );
     double trialShearStress2 = trialStress.at( 6 );
+
+    // Stress signs
+    auto signN0 = sgn( trialElasticStrain.at( 1 ) );
+    auto signS1 = sgn( trialElasticStrain.at( 5 ) );
+    auto signS2 = sgn( trialElasticStrain.at( 6 ) );
+    // Check consistency of stress signs
+    if ( signN0 * sgn( trialNormalStress ) < 0 ) {
+        OOFEM_ERROR("Inconsistent calculated stress sign for normal spring N");
+    } else if ( signS1 * sgn( trialShearStress1 ) < 0 ) {
+        OOFEM_ERROR("Inconsistent calculated stress sign for shear spring S1");
+    } else if ( signS2 * sgn( trialShearStress2 ) < 0 ) {
+        OOFEM_ERROR("Inconsistent calculated stress sign for shear spring S2");
+    }
 
     //auto [devTrialStress, meanTrialStress] = computeDeviatoricVolumetricSplit(); // c++17
     //double J2 = this->computeSecondStressInvariant(devTrialStress);
@@ -204,35 +218,69 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
                 double dPlStrain = tr_fs1 / ( G + H_k( nKs1 ) ); // plastic multiplier
                 // radial return
                 auto corShearStress = trialShearStress1 - sgn( trialShearStress1 ) * G * dPlStrain;
-                if ( G_k( nKs1 ) < 0 && corShearStress * trialShearStress1 < 0. ) {
-                    corShearStress = 0.;
-                    // shear failure cause normal failure
-                    // normalState++;
+                // Making sure that the corrected stresses make sense
+                if ( sgn( signS1 * corShearStress ) < 0 ) {
+                    double nextElStrainMagnitude_s1 = fabs(strain.at( 5 )) - ( plasticStrain.at( 5 ) + dPlStrain );
+                    if ( nextElStrainMagnitude_s1 < 0. && H_k( nKs1 ) < 0. ) {
+                        // plastic strain is larger than strain due to softening (H_k < 0)
+                        dPlStrain      = dPlStrain - fabs( corShearStress ) / G;
+                        nextElStrainMagnitude_s1 = fabs(strain.at( 5 )) - ( plasticStrain.at( 5 ) + dPlStrain );
+                        if ( fabs(nextElStrainMagnitude_s1) < ZERO) { // zero=~0.
+                            corShearStress = 0.;
+                        } else {
+                            OOFEM_ERROR( "Invalid elastic strain for shear spring S1" );
+                        }
+                        //normalState++;
+                    } else {
+                        OOFEM_ERROR( "Invalid shear stress / strain for spring S1" );
+                    }
                 }
                 ks1 += dPlStrain;
                 plasticStrain.at( 5 ) += dPlStrain;
 
-                // this can be a loop but it is deliberately avoided
-                if ( ks1 > epsP_k( nKs1 + 1 ) ) {
+                int c = 0;
+                // this can be a loop "WHILE" or deliberately done once "IF"
+                while ( ks1 > epsP_k( nKs1 + 1 ) ) {
+                    if ( ++c > 100 ) {
+                        OOFEM_ERROR("Plastic stress S1 calculation failed after %i corrections", c);
+                    }
                     nKs1++;
                     // Evaluate new yield stress from extra plastic strain
                     sigma_ys1 = sigma_k( nKs1 ) + H_k( nKs1 ) * ( ks1 - epsP_k( nKs1 ) );
                     tr_fs1    = fabs( corShearStress ) - sigma_ys1;
-                    // Calculate complimentary part of plastic strain
+                    // Calculate complimentary part of S1 plastic strain
                     dPlStrain      = tr_fs1 / ( G + H_k( nKs1 ) );
-                    corShearStress = corShearStress - sgn( corShearStress ) * G * dPlStrain;
-                    if ( sgn( trialShearStress1 ) * sgn( corShearStress ) < 0 ) {
-                        OOFEM_WARNING( "Invalid shear stress for spring S1" );
+                    corShearStress = corShearStress - signS1 * G * dPlStrain;
+                    // Making sure that the corrected stresses make sense
+                    if ( sgn( signS1 * corShearStress ) < 0 ) {
+                        double nextElStrainMagnitude_s1 = fabs(strain.at( 5 )) - ( plasticStrain.at( 5 ) + dPlStrain );
+                        if ( nextElStrainMagnitude_s1 < 0. && H_k( nKs1 ) < 0. ) {
+                            // plastic strain is larger than strain due to softening (H_k < 0)
+                            dPlStrain      = dPlStrain - fabs( corShearStress ) / G;
+                            nextElStrainMagnitude_s1 = fabs(strain.at( 5 )) - ( plasticStrain.at( 5 ) + dPlStrain );
+                            if ( fabs(nextElStrainMagnitude_s1) < ZERO) { // zero=~0.
+                                corShearStress = 0.;
+                            } else {
+                                OOFEM_ERROR( "Invalid elastic strain for shear spring S1" );
+                            }
+                            // normalState++;
+                        } else {
+                            OOFEM_ERROR( "Invalid shear stress / strain for spring S1" );
+                        }
                     }
 
                     ks1 += dPlStrain;
                     plasticStrain.at( 5 ) += dPlStrain;
                 }
-
+                if ( corShearStress * trialShearStress1 < 0. ) {
+                    //corShearStress = 0.;
+                    //normalState++;
+                    OOFEM_ERROR( "Invalid shear stress for spring S1" );
+                }
                 stress.at( 5 ) = corShearStress;
             }
         }
-        // Shear 2
+        // Shear spring 2:
         {
             double sigma_ys2, tr_fs2;
             sigma_ys2 = sigma_k( nKs2 ) + H_k( nKs2 ) * ( ks2 - epsP_k( nKs2 ) );
@@ -246,31 +294,65 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
                 double dPlStrain = tr_fs2 / ( G + H_k( nKs2 ) ); // plastic multiplier
                 // radial return
                 auto corShearStress = trialShearStress2 - sgn( trialShearStress2 ) * G * dPlStrain;
-                if ( G_k( nKs2 ) < 0 && corShearStress * trialShearStress2 < 0. ) {
-                    corShearStress = 0.;
-                    // shear failure cause normal failure
-                    // normalState++;
+                // Making sure that the corrected stresses make sense
+                if ( sgn( signS2 * corShearStress ) < 0 ) {
+                    double nextElStrainMagnitude_s2 = fabs(strain.at( 6 )) - ( plasticStrain.at( 6 ) + dPlStrain );
+                    if ( nextElStrainMagnitude_s2 < 0. && H_k( nKs2 ) < 0. ) {
+                        // plastic strain is larger than strain due to softening (H_k < 0)
+                        dPlStrain      = dPlStrain - fabs( corShearStress ) / G;
+                        nextElStrainMagnitude_s2 = fabs(strain.at( 6 )) - ( plasticStrain.at( 6 ) + dPlStrain );
+                        if ( fabs(nextElStrainMagnitude_s2) < ZERO) { // zero=~0.
+                            corShearStress = 0.;
+                        } else {
+                            OOFEM_ERROR( "Invalid elastic strain for shear spring S2" );
+                        }
+                        // normalState++;
+                    } else {
+                        OOFEM_ERROR( "Invalid shear stress / strain for spring S2" );
+                    }
                 }
                 ks2 += dPlStrain;
                 plasticStrain.at( 6 ) += dPlStrain;
 
-                // this can be a loop but it is deliberately avoided
-                if ( ks2 > epsP_k( nKs2 + 1 ) ) {
+                int c = 0;
+                // this can be a loop "WHILE" or deliberately done once "IF"
+                while ( ks2 > epsP_k( nKs2 + 1 ) ) {
+                    if ( ++c > 100 ) {
+                        OOFEM_ERROR("Plastic stress S2 calculation failed after %i corrections", c);
+                    }
                     nKs2++;
                     // Evaluate new yield stress from extra plastic strain
                     sigma_ys2 = sigma_k( nKs2 ) + H_k( nKs2 ) * ( ks2 - epsP_k( nKs2 ) );
                     tr_fs2    = fabs( corShearStress ) - sigma_ys2;
-                    // Calculate complimentary part of plastic strain
+                    // Calculate complimentary part of S2 plastic strain
                     dPlStrain      = tr_fs2 / ( G + H_k( nKs2 ) );
-                    corShearStress = corShearStress - sgn( corShearStress ) * G * dPlStrain;
-                    if ( sgn( trialShearStress2 ) * sgn( corShearStress ) < 0 ) {
-                        OOFEM_ERROR( "Invalid shear stress for spring S2" );
+                    corShearStress = corShearStress - signS2 * G * dPlStrain;
+                    // Making sure that the corrected stresses make sense
+                    if ( sgn( signS2 * corShearStress ) < 0 ) {
+                        double nextElStrainMagnitude_s2 = fabs(strain.at( 6 )) - ( plasticStrain.at( 6 ) + dPlStrain );
+                        if ( nextElStrainMagnitude_s2 < 0. && H_k( nKs2 ) < 0. ) {
+                            // plastic strain is larger than strain due to softening (H_k < 0)
+                            dPlStrain      = dPlStrain - fabs( corShearStress ) / G;
+                            nextElStrainMagnitude_s2 = fabs(strain.at( 6 )) - ( plasticStrain.at( 6 ) + dPlStrain );
+                            if ( fabs(nextElStrainMagnitude_s2) < ZERO) { // zero=~0.
+                                corShearStress = 0.;
+                            } else {
+                                OOFEM_ERROR( "Invalid elastic strain for shear spring S2" );
+                            }
+                            // normalState++;
+                        } else {
+                            OOFEM_ERROR( "Invalid shear stress / strain for spring S2" );
+                        }
                     }
 
                     ks2 += dPlStrain;
                     plasticStrain.at( 6 ) += dPlStrain;
                 }
-
+                if ( corShearStress * trialShearStress2 < 0. ) {
+                    //corShearStress = 0.;
+                    //normalState++;
+                    OOFEM_ERROR( "Invalid shear stress for spring S2" );
+                }
                 stress.at( 6 ) = corShearStress;
             }
         }
