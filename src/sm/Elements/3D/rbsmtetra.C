@@ -110,7 +110,7 @@ void RBSMTetra::initializeFrom( InputRecord &ir )
     springsBeams.resize( numberOfFacets );
     int number, startPoint, endPoint;
     endPoint = centerDofmanager;
-    for ( auto const facetExistingSisters : existingSisters ) {
+    for ( const auto &facetExistingSisters : existingSisters ) {
         int count = 0;
         for ( int neesan : facetExistingSisters.second ) {
             count++;
@@ -399,7 +399,7 @@ int RBSMTetra::nextDofmanagerGlobalNumber()
 
     nDofman = d->dofManagerList.size();
     if ( nDofman <= 0 ) {
-        OOFEM_ERROR( "Domain returned invalid DOF manager count: %d\n", num );
+        OOFEM_ERROR( "Domain returned invalid DOF manager count: %d\n", nDofman );
     }
 
     // first try for the next DOF manager's global number
@@ -434,7 +434,7 @@ int RBSMTetra::nextElementGlobalNumber( int baseNumber )
 
     nElem = d->giveNumberOfElements();
     if ( nElem <= 0 ) {
-        OOFEM_ERROR( "Domain returned invalid element count: %d\n", globalNumber );
+        OOFEM_ERROR( "Domain returned invalid element count: %d\n", nElem );
     }
 
     // first try for the next DOF manager's global number

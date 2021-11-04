@@ -22,8 +22,8 @@ rbsmBeam3d 1  nodes 2  1 2 refNode 3   nip 1
 #
 # .: Section :.
 #SimpleCS 1 area 200 Iy 1.389e5 Iz 1.389e5 Ik 1.e6 beamShearCoeff 1.e18 thick 1 material 1 set 1
-rbsFiberedCS 1 fibermaterials 1 1 thicks 1 1   widths 1 1  fiberycentrecoords 1 0 fiberzcentrecoords 1 0 thick 1 width 1 set 1
-#rbsFiberedCS 1 fibermaterials 4 1 1 1 1 thicks 4 1 1 1 1   widths 4 1 1 1 1  fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 1
+#rbsFiberedCS 1 fibermaterials 1 1 thicks 1 1   widths 1 1  fiberycentrecoords 1 0 fiberzcentrecoords 1 0 thick 1 width 1 set 1
+rbsFiberedCS 1 fibermaterials 4 1 1 1 1 thicks 4 1 1 1 1   widths 4 1 1 1 1  fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 1
 #FiberedCS 1 fibermaterials 4 1 1 1 1 thicks 4 1 1 1 1   widths 4 1 1 1 1  fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 1
 #rbsFiberedCS 1 fibermaterials 4 1 1 1 1 thicks 4 .72824 .72824 .72824 .72824  widths 4  .72824 .72824 .72824 .72824 fiberycentrecoords 4 1 -1 -1 1 fiberzcentrecoords 4 1 1 -1 -1 thick 2 width 2 set 1
 #

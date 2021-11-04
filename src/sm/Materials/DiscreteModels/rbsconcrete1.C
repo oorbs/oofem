@@ -42,7 +42,7 @@
 #include "sm/Elements/structuralelement.h"
 #include "mathfem.h"
 #pragma clang diagnostic pop
-#define ZERO 1.E-7
+#define ZERO 1.E-6
 
 namespace oofem {
 REGISTER_Material(RBSConcrete1);
@@ -224,15 +224,18 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
                     if ( nextElStrainMagnitude_s1 < 0. && H_k( nKs1 ) < 0. ) {
                         // plastic strain is larger than strain due to softening (H_k < 0)
                         dPlStrain      = dPlStrain - fabs( corShearStress ) / G;
-                        nextElStrainMagnitude_s1 = fabs(strain.at( 5 )) - ( plasticStrain.at( 5 ) + dPlStrain );
-                        if ( fabs(nextElStrainMagnitude_s1) < ZERO) { // zero=~0.
-                            corShearStress = 0.;
-                        } else {
-                            OOFEM_ERROR( "Invalid elastic strain for shear spring S1" );
+                        corShearStress = 0.;
+                        nextElStrainMagnitude_s1 = fabs( strain.at( 5 ) ) - ( plasticStrain.at( 5 ) + dPlStrain );
+#ifdef VERBOSE
+                        if ( fabs( nextElStrainMagnitude_s1 ) > ZERO ) { // zero=~0.
+                            OOFEM_WARNING( "Invalid plastic strain for shear S1@El%d.Gp%d",
+                                gp->giveElement()->giveGlobalNumber(), gp->giveNumber() );
                         }
+#endif
                         //normalState++;
                     } else {
-                        OOFEM_ERROR( "Invalid shear stress / strain for spring S1" );
+                        OOFEM_ERROR( "Invalid stress for shear S1@El%d",
+                            gp->giveElement()->giveGlobalNumber() );
                     }
                 }
                 ks1 += dPlStrain;
@@ -300,15 +303,18 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
                     if ( nextElStrainMagnitude_s2 < 0. && H_k( nKs2 ) < 0. ) {
                         // plastic strain is larger than strain due to softening (H_k < 0)
                         dPlStrain      = dPlStrain - fabs( corShearStress ) / G;
+                        corShearStress = 0.;
                         nextElStrainMagnitude_s2 = fabs(strain.at( 6 )) - ( plasticStrain.at( 6 ) + dPlStrain );
-                        if ( fabs(nextElStrainMagnitude_s2) < ZERO) { // zero=~0.
-                            corShearStress = 0.;
-                        } else {
-                            OOFEM_ERROR( "Invalid elastic strain for shear spring S2" );
+#ifdef VERBOSE
+                        if ( fabs(nextElStrainMagnitude_s2) > ZERO) { // zero=~0.
+                            OOFEM_WARNING( "Invalid plastic strain for shear S2@El%d.Gp%d",
+                                gp->giveElement()->giveGlobalNumber(), gp->giveNumber() );
                         }
+#endif
                         // normalState++;
                     } else {
-                        OOFEM_ERROR( "Invalid shear stress / strain for spring S2" );
+                        OOFEM_ERROR( "Invalid stress for shear S2@El%d",
+                                gp->giveElement()->giveGlobalNumber() );
                     }
                 }
                 ks2 += dPlStrain;
