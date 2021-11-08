@@ -54,17 +54,23 @@ RBSConcrete1::RBSConcrete1(int n, Domain *d) : StructuralMaterial(n, d), D(n, d)
 void
 RBSConcrete1::initializeFrom(InputRecord &ir)
 {
-    StructuralMaterial::initializeFrom(ir);
+    StructuralMaterial::initializeFrom( ir );
 
-    D.initializeFrom(ir);
-    IR_GIVE_FIELD(ir, this->sig0, _IFT_RBSConcrete1_yieldstress);
-    IR_GIVE_FIELD(ir, this->Et, _IFT_RBSConcrete1_tangentmodulus);
+    D.initializeFrom( ir );
+    IR_GIVE_FIELD( ir, this->fc, _IFT_RBSConcrete1_fc );
+    IR_GIVE_FIELD( ir, this->Et, _IFT_RBSConcrete1_tangentmodulus ); ///fixme: Et should be calculated automatically
 
-    this->E = this->D.giveYoungsModulus();
-    this->H = E * Et / ( E - Et );
+    if (this->fc <= 0.) {
+        OOFEM_ERROR( "f'c = %d value is not valid (use positive value", this->fc );
+    }
+
+    this->ft = fc <= 50. ? 0.3 * pow( fc, .6666667 ) : 2.12 * log( 1. + 0.1 * ( fc + 8. ) );
+    //this->ft = fc; // ******************************
+    this->E  = this->D.giveYoungsModulus();
+    this->H  = E * Et / ( E - Et );
 
     this->shearCoef = 2.;
-    this->G       = D.giveShearModulus();
+    this->G         = D.giveShearModulus();
 
     sigma_k.resize(maxNK);
     G_k.resize( maxNK );
@@ -74,9 +80,9 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
 
     // shear yield stress
     this->sigma_k = {
-        this->sig0 / shearCoef * 0.5,
-        this->sig0 / shearCoef * 1.0,
-        this->sig0 / shearCoef * 0.5,
+        this->fc / shearCoef * 0.5,
+        this->fc / shearCoef * 1.0,
+        this->fc / shearCoef * 0.5,
         0.
     };
 
@@ -105,7 +111,7 @@ void RBSConcrete1::giveInputRecord(DynamicInputRecord &ir)
 {
     StructuralMaterial::giveInputRecord(ir);
     D.giveInputRecord(ir);
-    ir.setField(this->sig0, _IFT_RBSConcrete1_yieldstress);
+    ir.setField(this->fc, _IFT_RBSConcrete1_fc );
     ir.setField(this->Et, _IFT_RBSConcrete1_tangentmodulus);
     //ir.setField(this->H, _IFT_RBSConcrete1_hardeningmoduli);
 }
@@ -171,7 +177,7 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
     // 1. Normal stress correction
 
     // evaluate the yield surface
-    double sigma_y = this->sig0 + H * k;    ///fixme!
+    double sigma_y = this->ft + H * k;    ///fixme!
     double tr_f = trialNormalStress - sigma_y;
 
     if ( nKn0 ) {
@@ -390,7 +396,7 @@ RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp
     auto elasticStiffness = D.giveTangent();
 
     double k = status->giveK();
-    double sigma_y = this->sig0 + H * k;
+    double sigma_y = this->ft + H * k;
 
     // 1. Normal spring
 
@@ -426,7 +432,7 @@ RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp
         int nKs2        = status->giveShearState2();
         double ks1 = status->giveKs1();
         double ks2 = status->giveKs2();
-        //double sigma_ys1 = this->sig0 + Hs1 * ks1;
+        //double sigma_ys1 = this->fc + Hs1 * ks1;
         double sigma_ys1 = sigma_k( nKs1 ) + H_k( nKs1 ) * ( ks1 - epsP_k( nKs1 ) );       ///FIXME!
         double tr_fs1 = fabs( trialShearStress1 ) - sigma_ys1;
         double sigma_ys2 = sigma_k( nKs2 ) + H_k( nKs2 ) * ( ks2 - epsP_k( nKs2 ) );       ///FIXME!

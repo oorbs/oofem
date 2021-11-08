@@ -41,7 +41,7 @@
 ///@name Input fields for RBSConcrete1
 //@{
 #define _IFT_RBSConcrete1_Name "rbsconcrete1"
-#define _IFT_RBSConcrete1_yieldstress "fc"
+#define _IFT_RBSConcrete1_fc "fc"
 #define _IFT_RBSConcrete1_tangentmodulus "et" //Et
 //#define _IFT_RBSConcrete1_hardeningmoduli "h"
 //@}
@@ -64,8 +64,8 @@ protected:
     double H = 0.;
 
     /// Initial (uniaxial) yield stress.
-    double sig0 = 0.;
-    double ft   = 0.;
+    double fc = 0.;
+    double ft = 0.;
 
     //  *** M U L T I L I N E A R  S H E A R ***
     /// number of multilinear stages
