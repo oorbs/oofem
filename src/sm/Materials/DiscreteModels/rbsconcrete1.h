@@ -63,6 +63,9 @@ protected:
     /// plastic modulus.
     double H = 0.;
 
+    /// Poisson's ratio
+    double nu = 0.;
+
     /// Initial (uniaxial) yield stress.
     double fc = 0.;
     double ft = 0.;
@@ -70,8 +73,14 @@ protected:
     //  *** M U L T I L I N E A R  S H E A R ***
     /// number of multilinear stages
     static const int maxNK = 4;
+    // these can be constants
+    /// linear stress coefficient before f'c (between 0. and 1.)
+    double linearStressRatio = 0.;
     /// shear coefficient
     double shearCoef = 0.;
+    /// shear spring strain corresponding to peak
+    double criticalStrain = 0.;
+    //
     /// elastic shear modulus
     double G;
     /// shear stresses (sigma) & hardening (Gt)

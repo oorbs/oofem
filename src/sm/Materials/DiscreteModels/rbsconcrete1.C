@@ -42,9 +42,9 @@
 #include "sm/Elements/structuralelement.h"
 #include "mathfem.h"
 #pragma clang diagnostic pop
-#define ZERO 1.E-6
 
 namespace oofem {
+#define ZERO 1.E-6
 REGISTER_Material(RBSConcrete1);
 
 RBSConcrete1::RBSConcrete1(int n, Domain *d) : StructuralMaterial(n, d), D(n, d)
@@ -59,6 +59,8 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
     D.initializeFrom( ir );
     IR_GIVE_FIELD( ir, this->fc, _IFT_RBSConcrete1_fc );
     IR_GIVE_FIELD( ir, this->Et, _IFT_RBSConcrete1_tangentmodulus ); ///fixme: Et should be calculated automatically
+    IR_GIVE_FIELD(ir, this->nu, _IFT_IsotropicLinearElasticMaterial_n);
+
 
     if (this->fc <= 0.) {
         OOFEM_ERROR( "f'c = %d value is not valid (use positive value", this->fc );
@@ -69,7 +71,9 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
     this->E  = this->D.giveYoungsModulus();
     this->H  = E * Et / ( E - Et );
 
+    this->linearStressRatio = .5;
     this->shearCoef = 2.;
+    this->criticalStrain = 0.002;
     this->G         = D.giveShearModulus();
 
     sigma_k.resize(maxNK);
@@ -80,15 +84,30 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
 
     // shear yield stress
     this->sigma_k = {
-        this->fc / shearCoef * 0.5,
+        this->fc / shearCoef * linearStressRatio,
         this->fc / shearCoef * 1.0,
         this->fc / shearCoef * 0.5,
         0.
     };
 
     ///TODO: this one should be inside the status since it depends on GP
-    // nonlinear shear (hardening/softening) moduli
-    this->G_k = { G, G / 2., -G / 4., -G / 8. };
+    {
+        double peakShearStress = 0.5 * this->fc;
+        ///TODO: better to update this for Dr. Nagai's PR effect
+        double criticalShearStrain = ( 1. + nu ) / ( 2. + nu ) * sqrt( 2. ) * this->criticalStrain;
+        // corresponds to CEB-FIP's Ec1 (slope of origin to peak)
+        //double Gc1 = peakShearStress / criticalShearStrain;
+        double maxLinearShearStress = this->linearStressRatio * peakShearStress;
+        double maxLinearShearStrain = maxLinearShearStress / G;
+        double Gt1                  = ( peakShearStress - maxLinearShearStress )
+                                / ( criticalShearStrain - maxLinearShearStrain );
+        // nonlinear shear (hardening/softening) moduli
+        this->G_k = {
+            G,
+            Gt1,
+            -G / 4., -G / 8.
+        };
+    }
     // calculate other multilinear specifications
     eps_k( 0 )  = sigma_k( 0 ) / G_k( 0 );
     epsP_k( 0 ) = 0;
@@ -183,7 +202,7 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
     if ( nKn0 ) {
         // damaged normal spring
         stress.at( 1 ) = 0;
-    } else if ( tr_f <= 0.0 ) { // elastic
+    } else if ( tr_f <= ZERO ) { // elastic
         //status->letTempPlasticStrainBe( status->givePlasticStrain() );
     } else { // plastic loading
         // plastic strain inc.
@@ -218,7 +237,7 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
             //
             if ( nKn0 ) { // if normal spring has failed, there is no shear stress
                 stress.at( 5 ) = 0;
-            } else if ( tr_fs1 <= 0.0 ) { // elastic
+            } else if ( tr_fs1 <= ZERO ) { // elastic
                 // status->letTempPlasticStrainBe( status->givePlasticStrain() );
             } else { // plastic loading
                 double dPlStrain = tr_fs1 / ( G + H_k( nKs1 ) ); // plastic multiplier
@@ -297,7 +316,7 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
             //
             if ( nKn0 ) { // if normal spring has failed, there is no shear stress
                 stress.at( 6 ) = 0;
-            } else if ( tr_fs2 <= 0.0 ) { // elastic
+            } else if ( tr_fs2 <= ZERO ) { // elastic
                 // status->letTempPlasticStrainBe( status->givePlasticStrain() );
             } else { // plastic loading
                 double dPlStrain = tr_fs2 / ( G + H_k( nKs2 ) ); // plastic multiplier
@@ -406,7 +425,7 @@ RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp
     if(status->giveNormalState()) {
         // prevent instability by not using 0.
         elasticStiffness.at( 1, 1 ) = 1.; // almost zero
-    } else if ( tr_f < 0.0 ) {
+    } else if ( tr_f < -ZERO ) {
         // elastic loading
     } else {
         // plastic loading: Et
@@ -439,7 +458,7 @@ RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp
         double tr_fs2 = fabs( trialShearStress2 ) - sigma_ys2;
 
         // Shear 1
-        if ( tr_fs1 <= 0.0 ) { // elastic loading
+        if ( tr_fs1 <= -ZERO ) { // elastic loading
             // continue
         } else { // plastic loading;
             // use Gt for hardening (faster convergence) and elastic G for softening (avoid divergence)
@@ -447,7 +466,8 @@ RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp
         }
 
         // Shear 2
-        if ( tr_fs2 <= 0.0 ) { // elastic loading
+        if ( tr_fs2 <= -ZERO
+            ) { // elastic loading
             // continue
         } else { // plastic loading
             elasticStiffness.at( 6, 6 ) = this->G_k(nKs2) > 0. ? this->G_k(nKs2) : G;
