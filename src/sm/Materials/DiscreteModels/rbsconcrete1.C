@@ -84,23 +84,35 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
 
     // shear yield stress
     this->sigma_k = {
-        this->fc / shearCoef * linearStressRatio,
-        this->fc / shearCoef * 1.0,
-        this->fc / shearCoef * 0.5,
+        0.5 * this->fc / this->shearCoef * linearStressRatio,
+        0.5 * this->fc / this->shearCoef * 1.0,
+        0.5 * this->fc / this->shearCoef * 0.5,
         0.
     };
 
     ///TODO: this one should be inside the status since it depends on GP
     {
-        double peakShearStress = 0.5 * this->fc;
-        ///TODO: better to update this for Dr. Nagai's PR effect
-        double criticalShearStrain = ( 1. + nu ) / ( 2. + nu ) * sqrt( 2. ) * this->criticalStrain;
+        /// TODO: better to update this for Dr. Nagai's PR effect
+        double maxLinearStress      = this->linearStressRatio * this->fc;
+        double maxLinearStrain      = maxLinearStress / this->E;
+        double peakShearStress      = 0.5 * this->fc / shearCoef;
+        double maxLinearShearStrain = ( 1. + nu ) / 2. * maxLinearStrain;
+        //double maxLinearShearStrain = maxLinearShearStress / G;
+        double criticalShearStrain  = ( 1. + nu ) / 2. * this->criticalStrain;
         // corresponds to CEB-FIP's Ec1 (slope of origin to peak)
         //double Gc1 = peakShearStress / criticalShearStrain;
         double maxLinearShearStress = this->linearStressRatio * peakShearStress;
-        double maxLinearShearStrain = maxLinearShearStress / G;
-        double Gt1                  = ( peakShearStress - maxLinearShearStress )
-                                / ( criticalShearStrain - maxLinearShearStrain );
+
+        double dStrain = criticalShearStrain - maxLinearShearStrain;
+        double Gt1;
+        if ( dStrain < ZERO ) {
+            OOFEM_WARNING(
+                "The stiffness of the material is too low to provide hardening before the compressive strain of %f",
+                criticalStrain );
+            Gt1 = 0.;
+        } else {
+            Gt1 = ( peakShearStress - maxLinearShearStress ) / dStrain ;
+        }
         // nonlinear shear (hardening/softening) moduli
         this->G_k = {
             G,
