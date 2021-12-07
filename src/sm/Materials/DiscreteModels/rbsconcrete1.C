@@ -97,12 +97,24 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
         double maxLinearStrain      = maxLinearStress / this->E;
         double peakShearStress      = 0.5 * this->fc / shearCoef;
         double maxLinearShearStrain = ( 1. + nu ) / 2. * maxLinearStrain;
+        double maxLinearShearStress = this->linearStressRatio * peakShearStress;
         //double maxLinearShearStrain = maxLinearShearStress / G;
+#if 0   // ignore nonlinear shear strains to calculate critical shear strain
         double criticalShearStrain  = ( 1. + nu ) / 2. * this->criticalStrain;
         // corresponds to CEB-FIP's Ec1 (slope of origin to peak)
         //double Gc1 = peakShearStress / criticalShearStrain;
-        double maxLinearShearStress = this->linearStressRatio * peakShearStress;
-
+#else   // consider nonlinear shear strains
+        double criticalShearStrain;
+        {
+            double criticalShearStrainE, criticalShearStrainP;
+            double PR_temp       = ( 2 + this->nu ) / ( 2 + 2 * this->nu ); // temporary fix for effect of PR on E_Mac
+            criticalShearStrainE = 0.5 * this->fc / ( this->shearCoef * this->G );
+            // criticalShearStrainE = ( 1. + nu ) / 2. * (fc/E);
+            criticalShearStrainP = ( this->criticalStrain - this->fc / ( this->E * PR_temp ) );
+            // alternatively: criticalShearStrainP = criticalStrain - 2. / ( 1. + this->nu ) * criticalShearStrainE
+            criticalShearStrain  = criticalShearStrainE + criticalShearStrainP;
+        }
+#endif
         double dStrain = criticalShearStrain - maxLinearShearStrain;
         double Gt1;
         if ( dStrain < ZERO ) {
