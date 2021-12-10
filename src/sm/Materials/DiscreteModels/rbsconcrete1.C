@@ -69,15 +69,15 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
         OOFEM_ERROR( "f'c = %d value is not valid (use positive value", this->fc );
     }
 
+    this->linearStressRatio = .50;
+    this->shearCoef         = 2.;
+    this->criticalStrain    = 0.002; // 0.002~0.003
+
     this->ft = fc <= 50. ? 0.3 * pow( fc, .6666667 ) : 2.12 * log( 1. + 0.1 * ( fc + 8. ) );
     this->fs = 0.5 * this->fc / shearCoef;
     this->E  = this->D.giveYoungsModulus();
     this->H  = E * Et / ( E - Et );
-
-    this->linearStressRatio = .50;
-    this->shearCoef = 2.;
-    this->criticalStrain = 0.003; //0.002
-    this->G         = D.giveShearModulus();
+    this->G  = D.giveShearModulus();
 
     fs_k.resize(maxNK);
     G_k.resize( maxNK );
@@ -95,7 +95,6 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
 
     ///TODO: this one should be inside the status since it depends on GP
     {
-        /// TODO: better to update this for Dr. Nagai's PR effect
         double maxLinearStress      = this->linearStressRatio * this->fc;
         double maxLinearStrain      = maxLinearStress / this->E;
         //double peakShearStress      = 0.5 * this->fc / shearCoef;
@@ -110,8 +109,9 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
         double criticalShearStrain;
         {
             double criticalShearStrainE, criticalShearStrainP;
+            /// TODO: better to update this for Dr. Nagai's PR effect
             double PR_temp       = ( 2 + this->nu ) / ( 2 + 2 * this->nu ); // temporary fix for effect of PR on E_Mac
-            criticalShearStrainE = fs / this->G;
+            criticalShearStrainE = this->fs / this->G;
             // alternatively: criticalShearStrainE = 0.5 * this->fc / ( this->shearCoef * this->G );
             // or for Gsc=0.5, Gs=2: criticalShearStrainE = ( 1. + nu ) / 2. * ( fc / E );
             criticalShearStrainP = ( this->criticalStrain - this->fc / ( this->E * PR_temp ) );
@@ -446,9 +446,8 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
 FloatMatrixF<6,6>
 RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp, TimeStep *tStep) const
 {
-    auto status = static_cast< RBSConcrete1Status * >( this->giveStatus(gp) );
-
     auto elasticStiffness = D.giveTangent();
+
 #ifdef MAKE_STIFFNESS_DIAGONAL
     for ( int i = 1; i <= elasticStiffness.rows(); ++i ) {
         for ( int j = 1; j <= elasticStiffness.cols(); ++j ) {
@@ -460,6 +459,8 @@ RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp
 #endif
 
 #ifdef ALLOW_TMODULUS
+    auto status = static_cast< RBSConcrete1Status * >( this->giveStatus(gp) );
+
     double trialNormalStress    = status->giveStressVector().at( 1 );
     double trialShearStress1    = status->giveStressVector().at( 5 );
     double trialShearStress2    = status->giveStressVector().at( 6 );
