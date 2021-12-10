@@ -66,9 +66,12 @@ protected:
     /// Poisson's ratio
     double nu = 0.;
 
-    /// Initial (uniaxial) yield stress.
+    /// Peak (uniaxial) compressive yield stress.
     double fc = 0.;
+    /// Peak tensile stress.
     double ft = 0.;
+    /// Peak shear stress.
+    double fs = 0.;
 
     //  *** M U L T I L I N E A R  S H E A R ***
     /// number of multilinear stages
@@ -84,7 +87,7 @@ protected:
     /// elastic shear modulus
     double G;
     /// shear stresses (sigma) & hardening (Gt)
-    FloatArray sigma_k, G_k;
+    FloatArray fs_k, G_k;
     //FloatArrayF<maxNK> sigma_k, G_k;
     /// elastic & plastic strains (eps, epsP)
     FloatArray eps_k, epsP_k;

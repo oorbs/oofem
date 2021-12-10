@@ -45,6 +45,9 @@
 
 namespace oofem {
 #define ZERO 1.E-6
+#define MAKE_STIFFNESS_DIAGONAL
+//#define ALLOW_TMODULUS
+//#define ALLOW_NEGATIVETMODULUS
 REGISTER_Material(RBSConcrete1);
 
 RBSConcrete1::RBSConcrete1(int n, Domain *d) : StructuralMaterial(n, d), D(n, d)
@@ -67,23 +70,23 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
     }
 
     this->ft = fc <= 50. ? 0.3 * pow( fc, .6666667 ) : 2.12 * log( 1. + 0.1 * ( fc + 8. ) );
-    //this->ft = fc; // ******************************
+    this->fs = 0.5 * this->fc / shearCoef;
     this->E  = this->D.giveYoungsModulus();
     this->H  = E * Et / ( E - Et );
 
-    this->linearStressRatio = .5;
+    this->linearStressRatio = .50;
     this->shearCoef = 2.;
-    this->criticalStrain = 0.002;
+    this->criticalStrain = 0.003; //0.002
     this->G         = D.giveShearModulus();
 
-    sigma_k.resize(maxNK);
+    fs_k.resize(maxNK);
     G_k.resize( maxNK );
     H_k.resize( maxNK );
     eps_k.resize( maxNK + 1 );
     epsP_k.resize( maxNK + 1 );
 
     // shear yield stress
-    this->sigma_k = {
+    this->fs_k = {
         0.5 * this->fc / this->shearCoef * linearStressRatio,
         0.5 * this->fc / this->shearCoef * 1.0,
         0.5 * this->fc / this->shearCoef * 0.5,
@@ -95,21 +98,22 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
         /// TODO: better to update this for Dr. Nagai's PR effect
         double maxLinearStress      = this->linearStressRatio * this->fc;
         double maxLinearStrain      = maxLinearStress / this->E;
-        double peakShearStress      = 0.5 * this->fc / shearCoef;
+        //double peakShearStress      = 0.5 * this->fc / shearCoef;
         double maxLinearShearStrain = ( 1. + nu ) / 2. * maxLinearStrain;
-        double maxLinearShearStress = this->linearStressRatio * peakShearStress;
+        double maxLinearShearStress = this->linearStressRatio * fs;
         //double maxLinearShearStrain = maxLinearShearStress / G;
 #if 0   // ignore nonlinear shear strains to calculate critical shear strain
         double criticalShearStrain  = ( 1. + nu ) / 2. * this->criticalStrain;
         // corresponds to CEB-FIP's Ec1 (slope of origin to peak)
-        //double Gc1 = peakShearStress / criticalShearStrain;
+        //double Gc1 = fs / criticalShearStrain;
 #else   // consider nonlinear shear strains
         double criticalShearStrain;
         {
             double criticalShearStrainE, criticalShearStrainP;
             double PR_temp       = ( 2 + this->nu ) / ( 2 + 2 * this->nu ); // temporary fix for effect of PR on E_Mac
-            criticalShearStrainE = 0.5 * this->fc / ( this->shearCoef * this->G );
-            // criticalShearStrainE = ( 1. + nu ) / 2. * (fc/E);
+            criticalShearStrainE = fs / this->G;
+            // alternatively: criticalShearStrainE = 0.5 * this->fc / ( this->shearCoef * this->G );
+            // or for Gsc=0.5, Gs=2: criticalShearStrainE = ( 1. + nu ) / 2. * ( fc / E );
             criticalShearStrainP = ( this->criticalStrain - this->fc / ( this->E * PR_temp ) );
             // alternatively: criticalShearStrainP = criticalStrain - 2. / ( 1. + this->nu ) * criticalShearStrainE
             criticalShearStrain  = criticalShearStrainE + criticalShearStrainP;
@@ -123,25 +127,26 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
                 criticalStrain );
             Gt1 = 0.;
         } else {
-            Gt1 = ( peakShearStress - maxLinearShearStress ) / dStrain ;
+            Gt1 = ( fs - maxLinearShearStress ) / dStrain ;
         }
         // nonlinear shear (hardening/softening) moduli
         this->G_k = {
             G,
             Gt1,
-            -G / 4., -G / 8.
+            -500.,
+            -50.
         };
     }
     // calculate other multilinear specifications
-    eps_k( 0 )  = sigma_k( 0 ) / G_k( 0 );
+    eps_k( 0 )  = fs_k( 0 ) / G_k( 0 );
     epsP_k( 0 ) = 0;
     for ( int i = 1; i < maxNK; ++i ) {
-        eps_k( i )  = eps_k( i - 1 ) + ( sigma_k( i ) - sigma_k( i - 1 ) ) / G_k( i );
-        epsP_k( i ) = eps_k( i  ) - sigma_k( i ) / G_k( 0 );
+        eps_k( i )  = eps_k( i - 1 ) + ( fs_k( i ) - fs_k( i - 1 ) ) / G_k( i );
+        epsP_k( i ) = eps_k( i  ) - fs_k( i ) / G_k( 0 );
         if ( eps_k( i ) != eps_k( i ) || epsP_k( i ) != epsP_k( i ) ){
             OOFEM_ERROR("Unable to calculate concrete yield stress due to divide to zero error.")
         }
-        H_k( i - 1 ) = ( sigma_k( i ) - sigma_k( i - 1 ) ) / ( epsP_k( i ) - epsP_k( i - 1 ) );
+        H_k( i - 1 ) = ( fs_k( i ) - fs_k( i - 1 ) ) / ( epsP_k( i ) - epsP_k( i - 1 ) );
     }
     eps_k( maxNK )  = 1.e+16; // INFINITY
     epsP_k( maxNK ) = 1.e+16; // INFINITY
@@ -181,9 +186,19 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
     for ( int i = 1; i <= 6; ++i ) {
         trialElasticStrain.at( i ) = strain.at( i ) - sgn( strain.at( i ) ) * plasticStrain.at( i );
     }
-
-    const auto &elasticStiffness = D.giveTangent();
-    auto trialStress = dot(elasticStiffness, trialElasticStrain );
+#ifndef MAKE_STIFFNESS_DIAGONAL//use elastic Stiffness by ref
+    const auto &elasticStiffnessMatrix = D.giveTangent();
+#else // make diagonal stiffness matrix
+    auto elasticStiffnessMatrix = D.giveTangent();
+    for ( int i = 1; i <= elasticStiffnessMatrix.rows(); ++i ) {
+        for ( int j = 1; j <= elasticStiffnessMatrix.cols(); ++j ) {
+            if ( i != j ) {
+                elasticStiffnessMatrix.at( i, j ) = 0.;
+            }
+        }
+    }
+#endif
+    auto trialStress = dot(elasticStiffnessMatrix, trialElasticStrain );
 
     // Trial stresses
     double trialNormalStress = trialStress.at( 1 );
@@ -220,8 +235,8 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
     // 1. Normal stress correction
 
     // evaluate the yield surface
-    double sigma_y = this->ft + H * k;    ///fixme!
-    double tr_f = trialNormalStress - sigma_y;
+    double sigma_yt = this->ft + H * k;    ///fixme!
+    double tr_f = trialNormalStress - sigma_yt;
 
     if ( nKn0 ) {
         // damaged normal spring
@@ -256,7 +271,7 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
         // Shear spring 1:
         {
             double sigma_ys1, tr_fs1;
-            sigma_ys1 = sigma_k( nKs1 ) + H_k( nKs1 ) * ( ks1 - epsP_k( nKs1 ) );   ///fixme!
+            sigma_ys1 = fs_k( nKs1 ) + H_k( nKs1 ) * ( ks1 - epsP_k( nKs1 ) );   ///fixme!
             tr_fs1    = fabs( trialShearStress1 ) - sigma_ys1;
             //
             if ( nKn0 ) { // if normal spring has failed, there is no shear stress
@@ -298,7 +313,7 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
                     }
                     nKs1++;
                     // Evaluate new yield stress from extra plastic strain
-                    sigma_ys1 = sigma_k( nKs1 ) + H_k( nKs1 ) * ( ks1 - epsP_k( nKs1 ) );
+                    sigma_ys1 = fs_k( nKs1 ) + H_k( nKs1 ) * ( ks1 - epsP_k( nKs1 ) );
                     tr_fs1    = fabs( corShearStress ) - sigma_ys1;
                     // Calculate complimentary part of S1 plastic strain
                     dPlStrain      = tr_fs1 / ( G + H_k( nKs1 ) );
@@ -335,7 +350,7 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
         // Shear spring 2:
         {
             double sigma_ys2, tr_fs2;
-            sigma_ys2 = sigma_k( nKs2 ) + H_k( nKs2 ) * ( ks2 - epsP_k( nKs2 ) );
+            sigma_ys2 = fs_k( nKs2 ) + H_k( nKs2 ) * ( ks2 - epsP_k( nKs2 ) );
             tr_fs2    = fabs( trialShearStress2 ) - sigma_ys2;
             //
             if ( nKn0 ) { // if normal spring has failed, there is no shear stress
@@ -377,7 +392,7 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
                     }
                     nKs2++;
                     // Evaluate new yield stress from extra plastic strain
-                    sigma_ys2 = sigma_k( nKs2 ) + H_k( nKs2 ) * ( ks2 - epsP_k( nKs2 ) );
+                    sigma_ys2 = fs_k( nKs2 ) + H_k( nKs2 ) * ( ks2 - epsP_k( nKs2 ) );
                     tr_fs2    = fabs( corShearStress ) - sigma_ys2;
                     // Calculate complimentary part of S2 plastic strain
                     dPlStrain      = tr_fs2 / ( G + H_k( nKs2 ) );
@@ -432,11 +447,22 @@ FloatMatrixF<6,6>
 RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp, TimeStep *tStep) const
 {
     auto status = static_cast< RBSConcrete1Status * >( this->giveStatus(gp) );
+
+    auto elasticStiffness = D.giveTangent();
+#ifdef MAKE_STIFFNESS_DIAGONAL
+    for ( int i = 1; i <= elasticStiffness.rows(); ++i ) {
+        for ( int j = 1; j <= elasticStiffness.cols(); ++j ) {
+            if ( i != j ) {
+                elasticStiffness.at( i, j ) = 0.;
+            }
+        }
+    }
+#endif
+
+#ifdef ALLOW_TMODULUS
     double trialNormalStress    = status->giveStressVector().at( 1 );
     double trialShearStress1    = status->giveStressVector().at( 5 );
     double trialShearStress2    = status->giveStressVector().at( 6 );
-
-    auto elasticStiffness = D.giveTangent();
 
     double k = status->giveK();
     double sigma_y = this->ft + H * k;
@@ -458,10 +484,13 @@ RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp
             min( 1., elasticStiffness.at( 1, 1 ) / 10000. ));*/
         // 2. use 1.
         /*elasticStiffness.at(1, 1 ) = 1.;*/
+#ifdef ALLOW_NEGATIVETMODULUS
         // 3. use Et
-        /*elasticStiffness.at(1, 1 ) = this->Et;*/
+        elasticStiffness.at(1, 1 ) = this->Et;
+#else
         // 4. use Et > 0 or Ee
         elasticStiffness.at(1, 1 ) = this->Et > 0. ? this->Et : this->E;
+#endif
     }
 
     // 2. Shear springs
@@ -476,17 +505,22 @@ RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp
         double ks1 = status->giveKs1();
         double ks2 = status->giveKs2();
         //double sigma_ys1 = this->fc + Hs1 * ks1;
-        double sigma_ys1 = sigma_k( nKs1 ) + H_k( nKs1 ) * ( ks1 - epsP_k( nKs1 ) );       ///FIXME!
+        double sigma_ys1 = fs_k( nKs1 ) + H_k( nKs1 ) * ( ks1 - epsP_k( nKs1 ) );       ///FIXME!
         double tr_fs1 = fabs( trialShearStress1 ) - sigma_ys1;
-        double sigma_ys2 = sigma_k( nKs2 ) + H_k( nKs2 ) * ( ks2 - epsP_k( nKs2 ) );       ///FIXME!
+        double sigma_ys2 = fs_k( nKs2 ) + H_k( nKs2 ) * ( ks2 - epsP_k( nKs2 ) );       ///FIXME!
         double tr_fs2 = fabs( trialShearStress2 ) - sigma_ys2;
 
         // Shear 1
         if ( tr_fs1 <= -ZERO ) { // elastic loading
             // continue
         } else { // plastic loading;
-            // use Gt for hardening (faster convergence) and elastic G for softening (avoid divergence)
-            elasticStiffness.at( 5, 5 ) = this->G_k(nKs1) > 0. ? this->G_k(nKs1) : G;
+#ifdef ALLOW_NEGATIVETMODULUS
+            // 1. use Gt
+            elasticStiffness.at( 5, 5 ) = this->G_k( nKs1 );
+#else
+            // 2. use Gt for hardening (faster convergence) and elastic G for softening (avoid divergence)
+            elasticStiffness.at( 5, 5 ) = this->G_k( nKs1 ) > 0. ? this->G_k( nKs1 ) : G;
+#endif
         }
 
         // Shear 2
@@ -494,9 +528,16 @@ RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp
             ) { // elastic loading
             // continue
         } else { // plastic loading
-            elasticStiffness.at( 6, 6 ) = this->G_k(nKs2) > 0. ? this->G_k(nKs2) : G;
+#ifdef ALLOW_NEGATIVETMODULUS
+            // 1. use Gt
+            elasticStiffness.at( 6, 6 ) = this->G_k( nKs2 );
+#else
+            // 2. use Gt for hardening (faster convergence) and elastic G for softening (avoid divergence)
+            elasticStiffness.at( 6, 6 ) = this->G_k( nKs2 ) > 0. ? this->G_k( nKs2 ) : G;
+#endif
         }
     }
+#endif
 
     return elasticStiffness;
 }
