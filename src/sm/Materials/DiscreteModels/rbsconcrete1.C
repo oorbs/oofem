@@ -45,7 +45,7 @@
 
 namespace oofem {
 #define ZERO 1.E-6
-#define MAKE_STIFFNESS_DIAGONAL
+//#define USE_DIAGONAL_STIFFNESS
 //#define ALLOW_TMODULUS
 //#define ALLOW_NEGATIVETMODULUS
 REGISTER_Material(RBSConcrete1);
@@ -183,22 +183,36 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
     // subtract plastic strains
     auto plasticStrain = status->givePlasticStrain();
     FloatArrayF<6> trialElasticStrain;
-    for ( int i = 1; i <= 6; ++i ) {
+    // normal elastic strain
+    for ( int i = 1; i <= 3; ++i ) { //todo: update this if focal point is used
+        trialElasticStrain.at( i ) = strain.at( i ) - plasticStrain.at( i );
+    }
+    // shear elastic strain
+    for ( int i = 3; i <= 6; ++i ) {
         trialElasticStrain.at( i ) = strain.at( i ) - sgn( strain.at( i ) ) * plasticStrain.at( i );
     }
-#ifndef MAKE_STIFFNESS_DIAGONAL//use elastic Stiffness by ref
-    const auto &elasticStiffnessMatrix = D.giveTangent();
+#ifndef USE_DIAGONAL_STIFFNESS//use elastic Stiffness by ref
+    const auto &elasticStiffness = D.giveTangent();
 #else // make diagonal stiffness matrix
-    auto elasticStiffnessMatrix = D.giveTangent();
-    for ( int i = 1; i <= elasticStiffnessMatrix.rows(); ++i ) {
-        for ( int j = 1; j <= elasticStiffnessMatrix.cols(); ++j ) {
-            if ( i != j ) {
-                elasticStiffnessMatrix.at( i, j ) = 0.;
-            }
+    //auto elasticStiffness = D.giveTangent();
+    const FloatMatrixF<6,6> elasticStiffness = {
+        this->E, 0., 0., 0., 0., 0.,
+        0., this->E, 0., 0., 0., 0.,
+        0., 0., this->E, 0., 0., 0.,
+        0., 0., 0., this->G, 0., 0.,
+        0., 0., 0., 0., this->G, 0.,
+        0., 0., 0., 0., 0., this->G
+    };
+
+    /*
+    for ( int i = 1; i <= elasticStiffness.rows(); ++i ) {
+        for ( int j = 1; j <= elasticStiffness.cols(); ++j ) {
+            if ( i != j ) elasticStiffness.at( i, j ) = 0.;
         }
     }
+    */
 #endif
-    auto trialStress = dot(elasticStiffnessMatrix, trialElasticStrain );
+    auto trialStress = dot( elasticStiffness, trialElasticStrain );
 
     // Trial stresses
     double trialNormalStress = trialStress.at( 1 );
@@ -257,7 +271,13 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
 
         //auto plasticStrain = status->givePlasticStrain();
         plasticStrain.at( 1 ) += dPlStrain;
-        //status->letTempPlasticStrainBe( plasticStrain );
+        // FOR NONDIAG [D]:
+        // + remove the Poisson effect's strains by making them part of plastic strain
+        plasticStrain.at( 2 ) += this->nu * dPlStrain;
+        plasticStrain.at( 3 ) += this->nu * dPlStrain;
+        // - another option is to remove these strains from strain vector:
+        // totalStrain.at( 2 ) -= this->nu * dPlStrain;
+        // totalStrain.at( 3 ) -= this->nu * dPlStrain;
     }
 
 
@@ -446,16 +466,26 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
 FloatMatrixF<6,6>
 RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp, TimeStep *tStep) const
 {
-    auto elasticStiffness = D.giveTangent();
 
-#ifdef MAKE_STIFFNESS_DIAGONAL
+#ifndef USE_DIAGONAL_STIFFNESS
+    auto elasticStiffness = D.giveTangent();
+#else
+    const FloatMatrixF<6,6> elasticStiffness = {
+        this->E, 0., 0., 0., 0., 0.,
+        0., this->E, 0., 0., 0., 0.,
+        0., 0., this->E, 0., 0., 0.,
+        0., 0., 0., this->G, 0., 0.,
+        0., 0., 0., 0., this->G, 0.,
+        0., 0., 0., 0., 0., this->G
+    };
+
+    /*
     for ( int i = 1; i <= elasticStiffness.rows(); ++i ) {
         for ( int j = 1; j <= elasticStiffness.cols(); ++j ) {
-            if ( i != j ) {
-                elasticStiffness.at( i, j ) = 0.;
-            }
+            if ( i != j ) elasticStiffness.at( i, j ) = 0.;
         }
     }
+    */
 #endif
 
 #ifdef ALLOW_TMODULUS
