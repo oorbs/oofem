@@ -225,8 +225,12 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
     auto signS2 = sgn( trialElasticStrain.at( 6 ) );
     // Check consistency of stress signs
     if ( signN0 * sgn( trialNormalStress ) < 0 ) {
-        OOFEM_WARNING("Inconsistent calculated stress sign for normal spring N");
+#ifndef USE_DIAGONAL_STIFFNESS
         signN0 = sgn( trialNormalStress );
+#else
+        OOFEM_ERROR("Inconsistent calculated stress sign for normal spring N at step %d:%d",
+            tStep->giveNumber(), tStep->giveSubStepNumber());
+#endif
     } else if ( signS1 * sgn( trialShearStress1 ) < 0 ) {
         OOFEM_ERROR("Inconsistent calculated stress sign for shear spring S1");
     } else if ( signS2 * sgn( trialShearStress2 ) < 0 ) {
@@ -256,6 +260,11 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
     if ( nKn0 ) {
         // damaged normal spring
         stress.at( 1 ) = 0;
+#ifndef USE_DIAGONAL_STIFFNESS
+        // to prevent problems with inner iterative method of structural material
+        stress.at( 2 ) = 0.;
+        stress.at( 3 ) = 0.;
+#endif
     } else if ( tr_f <= ZERO ) { // elastic
         //status->letTempPlasticStrainBe( status->givePlasticStrain() );
     } else { // plastic loading
@@ -266,6 +275,11 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
         if ( corNormalStress < 0. ) {
             corNormalStress = 0.;
             nKn0            = 1;
+#ifndef USE_DIAGONAL_STIFFNESS
+            // to prevent problems with inner iterative method of structural material
+            stress.at( 2 ) = 0.;
+            stress.at( 3 ) = 0.;
+#endif
         }
         stress.at( 1 ) = corNormalStress;
         k += dPlStrain;
