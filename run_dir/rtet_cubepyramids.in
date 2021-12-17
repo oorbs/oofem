@@ -38,7 +38,7 @@ rbsFiberedCS 1 fibermaterials 4 1 1 1 1 thicks 4 1.7838 1.7838 1.7838 1.7838   w
 #
 # .: Material :.
 #IsoLE 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5
-RBSConcrete1 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5 fc 40.0 Et -300.0
+RBSConcrete1 1 d 1. E 3.e4 n 0.4 tAlpha 1.2e-5 fc 40.0 Et -300.0
 #
 ## .: BC :.
 ## < BC disp.>

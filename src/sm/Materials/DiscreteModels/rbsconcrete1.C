@@ -188,7 +188,7 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
         trialElasticStrain.at( i ) = strain.at( i ) - plasticStrain.at( i );
     }
     // shear elastic strain
-    for ( int i = 3; i <= 6; ++i ) {
+    for ( int i = 4; i <= 6; ++i ) {
         trialElasticStrain.at( i ) = strain.at( i ) - sgn( strain.at( i ) ) * plasticStrain.at( i );
     }
 #ifndef USE_DIAGONAL_STIFFNESS//use elastic Stiffness by ref
@@ -225,7 +225,8 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
     auto signS2 = sgn( trialElasticStrain.at( 6 ) );
     // Check consistency of stress signs
     if ( signN0 * sgn( trialNormalStress ) < 0 ) {
-        OOFEM_ERROR("Inconsistent calculated stress sign for normal spring N");
+        OOFEM_WARNING("Inconsistent calculated stress sign for normal spring N");
+        signN0 = sgn( trialNormalStress );
     } else if ( signS1 * sgn( trialShearStress1 ) < 0 ) {
         OOFEM_ERROR("Inconsistent calculated stress sign for shear spring S1");
     } else if ( signS2 * sgn( trialShearStress2 ) < 0 ) {
@@ -271,10 +272,10 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
 
         //auto plasticStrain = status->givePlasticStrain();
         plasticStrain.at( 1 ) += dPlStrain;
-        // FOR NONDIAG [D]:
+        // FOR NON-DIAGONAL [D]: this is wrong for PR is calculated from stress vect
         // + remove the Poisson effect's strains by making them part of plastic strain
-        plasticStrain.at( 2 ) += this->nu * dPlStrain;
-        plasticStrain.at( 3 ) += this->nu * dPlStrain;
+        // plasticStrain.at( 2 ) -= this->nu * dPlStrain;
+        // plasticStrain.at( 3 ) -= this->nu * dPlStrain;
         // - another option is to remove these strains from strain vector:
         // totalStrain.at( 2 ) -= this->nu * dPlStrain;
         // totalStrain.at( 3 ) -= this->nu * dPlStrain;
