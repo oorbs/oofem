@@ -10,7 +10,7 @@ StaticStructural nsteps 200 nmodules 0 initialGuess 0
 #
 domain 3d
 OutputManager tstep_all dofman_all element_all
-ndofman 6 nelem 8 ncrosssect 1 nmat 1 nbc 2 nic 0 nset 3 nltf 1
+ndofman 6 nelem 12 ncrosssect 1 nmat 1 nbc 2 nic 0 nset 4 nltf 1
 #
 node 1    coords 3   0.   0.   2.
 node 2    coords 3   2.   0.   0.
@@ -28,10 +28,10 @@ rbsmBeam3d 6   nodes 2  4 6   refAngle 0.   nip 1
 rbsmBeam3d 7   nodes 2  1 5   refAngle 0.   nip 1
 rbsmBeam3d 8   nodes 2  5 6   refAngle 0.   nip 1
 # horizontal elements
-#rbsmBeam3d 9   nodes 2  2 3   refAngle 0.   nip 1
-#rbsmBeam3d 10  nodes 2  3 4   refAngle 0.   nip 1
-#rbsmBeam3d 11  nodes 2  4 5   refAngle 0.   nip 1
-#rbsmBeam3d 12  nodes 2  5 2   refAngle 0.   nip 1
+rbsmBeam3d 9   nodes 2  2 3   refAngle 0.   nip 1
+rbsmBeam3d 10  nodes 2  3 4   refAngle 0.   nip 1
+rbsmBeam3d 11  nodes 2  4 5   refAngle 0.   nip 1
+rbsmBeam3d 12  nodes 2  5 2   refAngle 0.   nip 1
 #
 # .: Section :.
 rbsFiberedCS 1 fibermaterials 4 1 1 1 1 thicks 4 1.7838 1.7838 1.7838 1.7838   widths 4 1.7838 1.7838 1.7838 1.7838   fiberycentrecoords 4 .8919 -.8919 -.8919 .8919 fiberzcentrecoords 4 .8919 .8919 -.8919 -.8919 thick 3.568 width 3.568 set 1
@@ -41,24 +41,27 @@ rbsFiberedCS 1 fibermaterials 4 1 1 1 1 thicks 4 1.7838 1.7838 1.7838 1.7838   w
 RBSConcrete1 1 d 1. E 3.e4 n 0.2 tAlpha 1.2e-5 fc 40.0 Et -300.0
 #
 ## .: BC :.
-## < BC disp.>
+## < BC disp. >
 BoundaryCondition 1 loadTimeFunction 1  dofs 6  1 2 3 4 5 6 values 6  0.  0.  -.096  0.  0.  0.   set 2
 BoundaryCondition 2 loadTimeFunction 1  dofs 6  1 2 3 4 5 6 values 6  0.  0.  0.     0.  0.  0.   set 3
+## < BC confinement >
+#BoundaryCondition 3 loadTimeFunction 1  dofs 2  1 2         values 2  0.  0.                      set 4
 #
 PiecewiseLinFunction 1 nPoints 2 t 2 0. 200. f(t) 2 0. 1.
 Set 1   allelements
 Set 2   nodes 1  1
 Set 3   nodes 1  6
+Set 4   nodes 4  2 3 4 5
 
 #%BEGIN_CHECK% tolerance 1.e-5
 #ELEMENT tStep 1 number 1 gp 1 keyword "strains" component 1  value 0.0
 #ELEMENT tStep 1 number 1 gp 1 keyword "strains" component 3  value 0.0
 #ELEMENT tStep 1 number 1 gp 1 keyword "stresses" component 1  value 0.0
 #ELEMENT tStep 1 number 1 gp 1 keyword "stresses" component 3  value 0.0
-#REACTION tStep 10 number 1 dof 1 value 0.0
+#NODE tStep 10 number 1 dof 3 unknown d value 0.0
 #REACTION tStep 10 number 1 dof 3 value 0.0
-#REACTION tStep 10 number 1 dof 2 value 0.0
-#REACTION tStep 10 number 1 dof 4 value 0.0
+#NODE tStep 10 number 2 dof 1 unknown d value 0.0
+#NODE tStep 10 number 4 dof 1 unknown d value 0.0
 #REACTION tStep 10 number 1 dof 5 value 0.0
 #REACTION tStep 10 number 1 dof 6 value 0.0
 #%END_CHECK%

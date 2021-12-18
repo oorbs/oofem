@@ -87,7 +87,7 @@ FloatArrayF<6> RBSFiberedCrossSection::giveGeneralizedStress_Beam3d( const Float
     }
 
     FloatArrayF<6> answer;
-    double shearCoef = 2.;
+    double shearCoef = 2.; // shear coef. 2:3
 
     for ( int i = 1; i <= this->fiberMaterials.giveSize(); i++ ) {
         auto fiberGp = this->giveSlaveGaussPoint(gp, i - 1);
@@ -138,7 +138,7 @@ FloatMatrixF<6,6> RBSFiberedCrossSection::give3dBeamStiffMtrx(MatResponseMode rM
 //
 {
     //double Ip = 0.0, A = 0.0, Ik, G = 0.0;
-    double shearCoef = 2.;
+    double shearCoef = 2.; //shear coef. 3:3
 
     FloatMatrixF<6,6> beamStiffness;
 

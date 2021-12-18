@@ -46,6 +46,7 @@
 namespace oofem {
 #define ZERO 1.E-6
 //#define USE_DIAGONAL_STIFFNESS
+//#define MAKE_DIAGONAL_STIFFNESS // only works with USE_DIAGONAL_STIFFNESS
 //#define ALLOW_TMODULUS
 //#define ALLOW_NEGATIVETMODULUS
 REGISTER_Material(RBSConcrete1);
@@ -70,7 +71,7 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
     }
 
     this->linearStressRatio = .50;
-    this->shearCoef         = 2.;
+    this->shearCoef         = 2.; // shear coef. 1:3
     this->criticalStrain    = 0.002; // 0.002~0.003
 
     this->ft = fc <= 50. ? 0.3 * pow( fc, .6666667 ) : 2.12 * log( 1. + 0.1 * ( fc + 8. ) );
@@ -191,10 +192,10 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
     for ( int i = 4; i <= 6; ++i ) {
         trialElasticStrain.at( i ) = strain.at( i ) - sgn( strain.at( i ) ) * plasticStrain.at( i );
     }
-#ifndef USE_DIAGONAL_STIFFNESS//use elastic Stiffness by ref
+
+#if !defined USE_DIAGONAL_STIFFNESS // use elastic isotropic stiffness by ref
     const auto &elasticStiffness = D.giveTangent();
-#else // make diagonal stiffness matrix
-    //auto elasticStiffness = D.giveTangent();
+#elif defined MAKE_DIAGONAL_STIFFNESS // make diagonal stiffness matrix
     const FloatMatrixF<6,6> elasticStiffness = {
         this->E, 0., 0., 0., 0., 0.,
         0., this->E, 0., 0., 0., 0.,
@@ -203,15 +204,15 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
         0., 0., 0., 0., this->G, 0.,
         0., 0., 0., 0., 0., this->G
     };
-
-    /*
-    for ( int i = 1; i <= elasticStiffness.rows(); ++i ) {
-        for ( int j = 1; j <= elasticStiffness.cols(); ++j ) {
+#else // use elastic isotropic [D] but make it diagonal
+    auto elasticStiffness = D.giveTangent();
+    for ( size_t i = 1; i <= elasticStiffness.rows(); ++i ) {
+        for ( size_t j = 1; j <= elasticStiffness.cols(); ++j ) {
             if ( i != j ) elasticStiffness.at( i, j ) = 0.;
         }
     }
-    */
 #endif
+
     auto trialStress = dot( elasticStiffness, trialElasticStrain );
 
     // Trial stresses
@@ -482,10 +483,10 @@ FloatMatrixF<6,6>
 RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp, TimeStep *tStep) const
 {
 
-#ifndef USE_DIAGONAL_STIFFNESS
+#if !defined USE_DIAGONAL_STIFFNESS // use elastic isotropic stiffness
     auto elasticStiffness = D.giveTangent();
-#else
-    const FloatMatrixF<6,6> elasticStiffness = {
+#elif defined MAKE_DIAGONAL_STIFFNESS // make diagonal stiffness matrix
+    FloatMatrixF<6,6> elasticStiffness = {
         this->E, 0., 0., 0., 0., 0.,
         0., this->E, 0., 0., 0., 0.,
         0., 0., this->E, 0., 0., 0.,
@@ -493,14 +494,13 @@ RBSConcrete1::give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp
         0., 0., 0., 0., this->G, 0.,
         0., 0., 0., 0., 0., this->G
     };
-
-    /*
-    for ( int i = 1; i <= elasticStiffness.rows(); ++i ) {
-        for ( int j = 1; j <= elasticStiffness.cols(); ++j ) {
+#else // use elastic isotropic [D] but make it diagonal
+    auto elasticStiffness = D.giveTangent();
+    for ( size_t i = 1; i <= elasticStiffness.rows(); ++i ) {
+        for ( size_t j = 1; j <= elasticStiffness.cols(); ++j ) {
             if ( i != j ) elasticStiffness.at( i, j ) = 0.;
         }
     }
-    */
 #endif
 
 #ifdef ALLOW_TMODULUS
