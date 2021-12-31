@@ -130,6 +130,9 @@ public:
 
     int giveNumberOfIPForMassMtrxIntegration() override { return 4; }
 
+    void giveInternalForcesVector(FloatArray &answer, TimeStep *, int useUpdatedGpRecord = 0) override;
+
+
     Interface *giveInterface(InterfaceType it) override;
 
     // definition & identification
@@ -248,5 +251,25 @@ protected:
     ///@return map of existing sister element for each facet
     std::map<int, IntArray> updateCellElementsOfFacets();
 };
+
+/**
+ * The element interface required by RBSMTetra.
+ */
+//class RBSMTetraInterface : public Interface
+//{
+//public:
+//    RBSMTetraInterface() { }
+//
+//    /**
+//     * Computes full 3d strain vector in element fiber. This function is necessary
+//     * if layered cross section is specified.
+//     * @param answer Full fiber strain vector.
+//     * @param masterGpStrain Strain vector at master gauss point.
+//     * @param slaveGp Slave integration point representing particular fiber.
+//     * @param tStep Time step.
+//     */
+//    virtual void RBSMTetraInterface_computeConfinedStressVector(FloatArray &answer, const FloatArray &masterGpStrain,
+//        GaussPoint *slaveGp, TimeStep *tStep) = 0;
+//};
 } // end namespace oofem
 #endif // rbsmtetra_h

@@ -196,5 +196,55 @@ void RBSMBeam3d::setNumberOfGaussPoints( int nip )
     numberOfGaussPoints = nip;
 }
 
+// put this in an interface:
+// (v-2.5) calculate confined stresses to apply Poisson's effect:
+void RBSMBeam3d::RBSMTetraInterface_computeConfinedStressVector( FloatArray &answer, TimeStep *tStep )
+//, int useUpdatedGpRecord )
+{
+    FloatMatrix b;
+    FloatArray u, stress, strain;
+
+    // This function can be quite costly to do inside the loops when one has many slave dofs.
+    this->computeVectorOf(VM_Total, tStep, u);
+    // subtract initial displacements, if defined
+    if ( initialDisplacements ) {
+        u.subtract(* initialDisplacements);
+    }
+
+    for ( GaussPoint *gp : * this->giveDefaultIntegrationRulePtr() ) {
+        this->computeBmatrixAt(gp, b);
+
+        if ( !this->isActivated( tStep ) ) {
+            strain.resize( StructuralMaterial ::giveSizeOfVoigtSymVector( gp->giveMaterialMode() ) );
+            strain.zero();
+        }
+        strain.beProductOf( b, u );
+        // change to compute confined stress components: *** <COMPUTE CONFINED STRESS COMPONENTS> ***
+        this->computeStressVector( stress, strain, gp, tStep );
+        //stress = this->giveStructuralCrossSection()->giveGeneralizedStress_Beam3d(strain, gp, tStep);
+
+        // updates gp stress and strain record according to current increment of displacement
+        if ( stress.giveSize() == 0 ) {
+            break;
+        }
+
+        // now every gauss point has real stress vector
+        // compute nodal representation of internal forces using f = B^T*Sigma dV
+        double dV = this->computeVolumeAround(gp);
+        if ( stress.giveSize() == 6 ) {
+            // It may happen that e.g. plane strain is computed
+            // using the default 3D implementation. If so,
+            // the stress needs to be reduced.
+            // (Note that no reduction will take place if
+            //  the simulation is actually 3D.)
+            FloatArray stressTemp;
+            StructuralMaterial :: giveReducedSymVectorForm(stressTemp, stress, gp->giveMaterialMode() );
+            answer.plusProduct(b, stressTemp, dV);
+        } else {
+            answer.plusProduct(b, stress, dV);
+        }
+    }
+}
+
 } // end namespace oofem
 // <temporary/>

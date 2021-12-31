@@ -125,7 +125,7 @@ FloatArrayF<6> RBSFiberedCrossSection::giveGeneralizedStress_Beam3d( const Float
         answer.at(6) -= reducedFiberStress.at(1) * fiberArea * fiberYCoord;
     }
 
-    // why only the first fiber's material is used to update the master Gauss point?
+    // Create material status according to the first fiber material as master (this should be revised to CS status)
     auto status = static_cast< StructuralMaterialStatus * >( domain->giveMaterial( fiberMaterials.at(1) )->giveStatus(gp) );
     status->letTempStrainVectorBe(strain);
     status->letTempStressVectorBe(answer);

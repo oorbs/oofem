@@ -91,6 +91,7 @@ public:
     void initializeFrom( InputRecord &ir ) override;
 
     virtual void setNumberOfGaussPoints( int nip );
+    void RBSMTetraInterface_computeConfinedStressVector( FloatArray &answer, TimeStep *tStep );
 
 
 protected:

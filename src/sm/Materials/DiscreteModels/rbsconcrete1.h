@@ -110,7 +110,10 @@ public:
 
     MaterialStatus *CreateStatus(GaussPoint *gp) const override;
 
-    FloatArrayF<6> giveRealStressVector_3d(const FloatArrayF<6> &strain, GaussPoint *gp, TimeStep *tStep) const override;
+    FloatArrayF<6> giveRealStressVector_3d( const FloatArrayF<6> &strain, GaussPoint *gp, TimeStep *tStep ) const override;
+    FloatArrayF<6> giveRealStressVector_3dBeamSubSoil( const FloatArrayF<6> &reducedStrain, GaussPoint *gp, TimeStep *tStep ) const override;
+    /// Overrides the default implementation to preserve the stresses induced due to confinement
+    FloatArray giveRealStressVector_StressControl(const FloatArray &reducedE, const IntArray &strainControl, GaussPoint *gp, TimeStep *tStep) const override;
 
     FloatMatrixF<6,6> give3dMaterialStiffnessMatrix(MatResponseMode mode, GaussPoint *gp, TimeStep *tStep) const override;
 

@@ -174,6 +174,47 @@ void RBSMTetra ::updateLocalNumbering( EntityRenumberingFunctor &f )
     }
 }
 
+void RBSMTetra::giveInternalForcesVector(FloatArray &answer,
+    TimeStep *tStep, int useUpdatedGpRecord)
+{
+    int numberOfFacets = 4;
+    FloatArray bsStressVector;
+    for ( int i = 0; i < numberOfFacets; ++i ) {
+        if ( this->springsBeams[i].isEmpty() ) {
+            continue;
+        }
+
+        for ( int sb : springsBeams[i] ) {
+#if defined MINDLIN
+            RBSMBeam3d *springsBeam = dynamic_cast<RBSMBeam3d *>( domain->giveElement( sb ) );
+#else
+            RBSBeam3d *springsBeam = dynamic_cast<RBSBeam3d *>( domain->giveElement( sb ) );
+            OOFEM_ERROR(
+                "face %d of element %d points to RBSBeam3d springs which don't support confined stress",
+                i + 1, number );
+#endif
+            if ( !springsBeam ) {
+                OOFEM_ERROR(
+                    "face %d of element %d points to an invalid element for its springs",
+                    i + 1, number );
+            }
+            // calculate stresses:
+            springsBeam->RBSMTetraInterface_computeConfinedStressVector(
+                bsStressVector, tStep );
+
+
+        }
+    }
+
+
+
+
+
+    // rigid body does not have InternalForcesVector
+    answer.resize( 0 );
+    return;
+}
+
 void RBSMTetra::giveCharacteristicMatrix( FloatMatrix &answer, CharType type, TimeStep *tStep )
 {
     // rigid body does not have a characteristic matrix
@@ -186,7 +227,9 @@ void RBSMTetra::giveCharacteristicVector( FloatArray &answer, CharType type, Val
         StructuralElement::giveCharacteristicVector( answer, type, mode, tStep );
     } else if ( type == InternalForcesVector ) {
         // rigid body does not have InternalForcesVector
-        answer.resize( 0 );
+        // answer.resize( 0 );
+        // This is used to calculate Poisson's stresses later used in internal stresses
+        this->giveInternalForcesVector(answer, tStep);
     } else if ( ( type == LastEquilibratedInternalForcesVector ) && ( mode == VM_Total ) ) {
         answer.resize( 0 );
     } else {

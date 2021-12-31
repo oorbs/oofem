@@ -45,10 +45,11 @@
 
 namespace oofem {
 #define ZERO 1.E-6
-//#define USE_DIAGONAL_STIFFNESS
-//#define MAKE_DIAGONAL_STIFFNESS // only works with USE_DIAGONAL_STIFFNESS
-//#define ALLOW_TMODULUS
-//#define ALLOW_NEGATIVETMODULUS
+#define CONFINED_STRESS_CONTROL     // override the stress control reduction
+//#define USE_DIAGONAL_STIFFNESS    // don't use with CONFINED_STRESS_CONTROL
+//#define MAKE_DIAGONAL_STIFFNESS   // only use with USE_DIAGONAL_STIFFNESS
+//#define ALLOW_TMODULUS            //
+//#define ALLOW_NEGATIVETMODULUS    //
 REGISTER_Material(RBSConcrete1);
 
 RBSConcrete1::RBSConcrete1(int n, Domain *d) : StructuralMaterial(n, d), D(n, d)
@@ -172,8 +173,7 @@ MaterialStatus *RBSConcrete1::CreateStatus(GaussPoint *gp) const
 }
 
 
-FloatArrayF<6>
-RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussPoint *gp, TimeStep *tStep ) const
+FloatArrayF<6> RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussPoint *gp, TimeStep *tStep ) const
 {
     auto status = static_cast<RBSConcrete1Status *>( this->giveStatus( gp ) );
 
@@ -476,6 +476,71 @@ RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussP
     //status->letTempDevTrialStressBe(devTrialStress);
     status->letTempNormalStateBe( nKn0 );
     return stress;
+}
+
+// (v-2.5) possibly not needed, delete
+FloatArrayF<6> RBSConcrete1::giveRealStressVector_3dBeamSubSoil( const FloatArrayF<6> &reducedStrain, GaussPoint *gp, TimeStep *tStep ) const
+{
+    auto status = static_cast< StructuralMaterialStatus * >( this->giveStatus(gp) );
+
+    FloatArray vE, vS;
+    FloatMatrix tangent, reducedTangent;
+
+    // Initial guess;
+    vE = status->giveStrainVector();
+    vS = this->giveRealStressVector_3d(vE, gp, tStep);
+
+    return vS;
+}
+
+// (v-2.5) keep confined stresses for redistribution in RBSM element
+FloatArray RBSConcrete1::giveRealStressVector_StressControl(
+    const FloatArray &reducedStrain, const IntArray &strainControl, GaussPoint *gp, TimeStep *tStep ) const
+{
+#ifdef CONFINED_STRESS_CONTROL
+    auto status = static_cast< StructuralMaterialStatus * >( this->giveStatus(gp) );
+
+    IntArray stressControl;
+    FloatArray vE, increment_vE, vS;
+    FloatMatrix tangent, reducedTangent;
+    // Stores reduced strain vector
+    FloatArray answer;
+
+    stressControl.resize(6 - strainControl.giveSize() );
+    for ( int i = 1, j = 1; i <= 6; i++ ) {
+        if ( !strainControl.contains(i) ) {
+            stressControl.at(j++) = i;
+        }
+    }
+
+    // Initialize strain vector
+    vE = status->giveStrainVector();
+    for ( int i = 1; i <= strainControl.giveSize(); ++i ) {
+        vE.at(strainControl.at(i) ) = reducedStrain.at(i);
+    }
+
+    // Calculate reduced stress vector
+    vS = this->giveRealStressVector_3d(vE, gp, tStep);
+
+    // Pick out the (response) stresses for the controlled strains
+    answer.beSubArrayOf(vS, strainControl);
+
+    // the default implementation is to eliminate stress control,
+    // reducedvS.beSubArrayOf(vS, stressControl);
+    // do while ( reducedvS.computeNorm() <= 1e-6 * vS.computeNorm() )
+    // {
+    //    tangent = this->give3dMaterialStiffnessMatrix(TangentStiffness, gp, tStep);
+    //    reducedTangent.beSubMatrixOf(tangent, stressControl, stressControl);
+    //    reducedTangent.solveForRhs(reducedvS, increment_vE);
+    //    increment_vE.negated();
+    //    vE.assemble(increment_vE, stressControl);
+    //    etc.
+    // }
+    // but for RBSM we keep these stresses (confined condition):
+    return answer;
+#else
+    return StructuralMaterial::giveRealStressVector_StressControl(reducedStrain, strainControl, gp, tStep);
+#endif
 }
 
 
