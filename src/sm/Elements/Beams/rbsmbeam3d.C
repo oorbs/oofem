@@ -198,9 +198,10 @@ void RBSMBeam3d::setNumberOfGaussPoints( int nip )
 
 // put this in an interface:
 // (v-2.5) calculate confined stresses to apply Poisson's effect:
-void RBSMBeam3d::RBSMTetraInterface_computeConfinedStressVector( FloatArray &answer, TimeStep *tStep )
+void RBSMBeam3d::RBSMTetraInterface_computeStressVector( FloatArray &answer, TimeStep *tStep )
 //, int useUpdatedGpRecord )
 {
+    /// todo: separate strain calculation from stress calculation
     FloatMatrix b;
     FloatArray u, stress, strain;
 
@@ -211,8 +212,8 @@ void RBSMBeam3d::RBSMTetraInterface_computeConfinedStressVector( FloatArray &ans
         u.subtract(* initialDisplacements);
     }
 
-    for ( GaussPoint *gp : * this->giveDefaultIntegrationRulePtr() ) {
-        this->computeBmatrixAt(gp, b);
+    for ( GaussPoint *gp : *this->giveDefaultIntegrationRulePtr() ) {
+        this->computeBmatrixAt( gp, b );
 
         if ( !this->isActivated( tStep ) ) {
             strain.resize( StructuralMaterial ::giveSizeOfVoigtSymVector( gp->giveMaterialMode() ) );
@@ -220,30 +221,17 @@ void RBSMBeam3d::RBSMTetraInterface_computeConfinedStressVector( FloatArray &ans
         }
         strain.beProductOf( b, u );
         // change to compute confined stress components: *** <COMPUTE CONFINED STRESS COMPONENTS> ***
-        this->computeStressVector( stress, strain, gp, tStep );
-        //stress = this->giveStructuralCrossSection()->giveGeneralizedStress_Beam3d(strain, gp, tStep);
+        // this->computeStressVector( stress, strain, gp, tStep );
+        stress = this->giveStructuralCrossSection()->giveRealStress_3d( strain, gp, tStep );
 
         // updates gp stress and strain record according to current increment of displacement
         if ( stress.giveSize() == 0 ) {
             break;
         }
-
-        // now every gauss point has real stress vector
-        // compute nodal representation of internal forces using f = B^T*Sigma dV
-        double dV = this->computeVolumeAround(gp);
-        if ( stress.giveSize() == 6 ) {
-            // It may happen that e.g. plane strain is computed
-            // using the default 3D implementation. If so,
-            // the stress needs to be reduced.
-            // (Note that no reduction will take place if
-            //  the simulation is actually 3D.)
-            FloatArray stressTemp;
-            StructuralMaterial :: giveReducedSymVectorForm(stressTemp, stress, gp->giveMaterialMode() );
-            answer.plusProduct(b, stressTemp, dV);
-        } else {
-            answer.plusProduct(b, stress, dV);
-        }
+        answer = stress;
+        return;
     }
+    OOFEM_ERROR( "Could not obtain stress of the RBS-Mindlin beam element")
 }
 
 } // end namespace oofem

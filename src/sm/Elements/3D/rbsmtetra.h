@@ -68,6 +68,8 @@ class RBSMTetra : public Structural3DElement
 {
 // .: properties :.
 public:
+    /// facets' stresses used by rigid body todo: make private
+    std::vector<FloatArray> tempFacetsStressVector;
 
 protected:
     static FEI3dTetLin interpolation;

@@ -76,7 +76,8 @@ public:
         FloatArray fiberYcoords = {}, FloatArray fiberZcoords = {} ) override;
 
 
-    FloatArrayF<6> giveGeneralizedStress_Beam3d(const FloatArrayF<6> &generalizedStrain, GaussPoint *gp, TimeStep *tStep) const override;
+    FloatArrayF<6> giveGeneralizedStress_Beam3d( const FloatArrayF<6> &generalizedStrain, GaussPoint *gp, TimeStep *tStep ) const override;
+    FloatArrayF<6> giveRealStress_3d( const FloatArrayF<6> &reducedStrain, GaussPoint *gp, TimeStep *tStep ) const override;
 
     FloatMatrixF<6,6> give3dBeamStiffMtrx(MatResponseMode mode, GaussPoint *gp, TimeStep *tStep) const override;
 

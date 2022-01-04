@@ -106,8 +106,9 @@ void RBSMTetra::initializeFrom( InputRecord &ir )
         RBSMTetra::updateCellElementsOfFacets();
 
     // make springs beams
-    //@todo: move to post-initialization, remove override RBSMTetra::setCrossSection
     springsBeams.resize( numberOfFacets );
+    //tempFacetsStressVector.resize( numberOfFacets );
+    //@todo: move to post-initialization, remove override RBSMTetra::setCrossSection
     int number, startPoint, endPoint;
     endPoint = centerDofmanager;
     for ( const auto &facetExistingSisters : existingSisters ) {
@@ -183,7 +184,7 @@ void RBSMTetra::giveInternalForcesVector(FloatArray &answer,
         if ( this->springsBeams[i].isEmpty() ) {
             continue;
         }
-
+        //this->tempFacetsStressVector[i].zero()
         for ( int sb : springsBeams[i] ) {
 #if defined MINDLIN
             RBSMBeam3d *springsBeam = dynamic_cast<RBSMBeam3d *>( domain->giveElement( sb ) );
@@ -199,10 +200,8 @@ void RBSMTetra::giveInternalForcesVector(FloatArray &answer,
                     i + 1, number );
             }
             // calculate stresses:
-            springsBeam->RBSMTetraInterface_computeConfinedStressVector(
-                bsStressVector, tStep );
-
-
+            springsBeam->RBSMTetraInterface_computeStressVector( bsStressVector, tStep );
+            //this->tempFacetsStressVector[i].add( bsStressVector );
         }
     }
 

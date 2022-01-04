@@ -44,6 +44,7 @@
 #include "classfactory.h"
 
 namespace oofem {
+#define SHEAR_COEF 2. // shear coef. 2~3:3
 REGISTER_CrossSection(RBSFiberedCrossSection);
 
 void RBSFiberedCrossSection::initializeFrom( int number, IntArray fiberMaterials,
@@ -87,7 +88,7 @@ FloatArrayF<6> RBSFiberedCrossSection::giveGeneralizedStress_Beam3d( const Float
     }
 
     FloatArrayF<6> answer;
-    double shearCoef = 2.; // shear coef. 2:3
+    double shearCoef = SHEAR_COEF; // shear coef.
 
     for ( int i = 1; i <= this->fiberMaterials.giveSize(); i++ ) {
         auto fiberGp = this->giveSlaveGaussPoint(gp, i - 1);
@@ -133,12 +134,63 @@ FloatArrayF<6> RBSFiberedCrossSection::giveGeneralizedStress_Beam3d( const Float
     return answer;
 }
 
+/// todo: separate the giveRealStress_by_section & giveRealStress_by_fiber
+FloatArrayF<6> RBSFiberedCrossSection::giveRealStress_3d( const FloatArrayF<6> &strain,
+    GaussPoint *gp, TimeStep *tStep ) const
+{
+    auto element = static_cast< StructuralElement * >( gp->giveElement() );
+    auto interface = static_cast< FiberedCrossSectionInterface * >( element->giveInterface(FiberedCrossSectionInterfaceType) );
+    if ( interface == nullptr ) {
+        OOFEM_ERROR("element with no fiber support encountered");
+    }
+    IntArray maskStrainControl;
+    StructuralMaterial::giveVoigtSymVectorMask(maskStrainControl, _Fiber);
+    FloatArrayF<6> answer;
+
+    double Area = 0.;
+    //double shearCoef = SHEAR_COEF; // shear coef.
+    for ( int i = 1; i <= this->fiberMaterials.giveSize(); i++ ) {
+        auto fiberGp = this->giveSlaveGaussPoint(gp, i - 1);
+        auto fiberMat = static_cast< StructuralMaterial * >( domain->giveMaterial( fiberMaterials.at(i) ) );
+
+        double fiberArea = this->fiberThicks.at(i) * this->fiberWidths.at(i);
+        Area += fiberArea;
+
+        FloatArray fullFiberStrain = strain;
+        FloatArray reducedFiberStrain;
+        FloatArray fullFiberStress;
+        //FloatArray reducedFiberStress;
+        interface->FiberedCrossSectionInterface_computeStrainVectorInFiber( reducedFiberStrain, strain, fiberGp, tStep);
+        for ( int i = 1; i <= maskStrainControl.giveSize(); ++i ) {
+            fullFiberStrain.at(maskStrainControl.at(i) ) = reducedFiberStrain.at(i);
+        }
+
+        //reducedFiberStress = fiberMat->giveRealStressVector_Fiber( reducedFiberStrain, fiberGp, tStep);
+        fullFiberStress = fiberMat->giveRealStressVector_3d( fullFiberStrain, fiberGp, tStep );
+
+        answer.at(1) += fullFiberStress.at(1) * fiberArea;
+        answer.at(2) += fullFiberStress.at(2) * fiberArea;
+        answer.at(3) += fullFiberStress.at(3) * fiberArea;
+        answer.at(4) += fullFiberStress.at(4) * fiberArea;
+        answer.at(5) += fullFiberStress.at(5) * fiberArea;
+        answer.at(6) += fullFiberStress.at(6) * fiberArea;
+    }
+    answer = answer * ( 1. / Area );
+
+    // update temp stresses if needed
+//    auto status = static_cast<StructuralMaterialStatus *>( domain->giveMaterial( fiberMaterials.at( 1 ) )->giveStatus( gp ) );
+//    status->letTempStrainVectorBe(strain);
+//    status->letTempStressVectorBe(answer);
+
+    return answer;
+}
+
 
 FloatMatrixF<6,6> RBSFiberedCrossSection::give3dBeamStiffMtrx(MatResponseMode rMode, GaussPoint *gp, TimeStep *tStep) const
 //
 {
     //double Ip = 0.0, A = 0.0, Ik, G = 0.0;
-    double shearCoef = 2.; //shear coef. 3:3
+    double shearCoef = SHEAR_COEF; //shear coef.
 
     FloatMatrixF<6,6> beamStiffness;
 
