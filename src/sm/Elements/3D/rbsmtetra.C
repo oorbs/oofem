@@ -107,7 +107,7 @@ void RBSMTetra::initializeFrom( InputRecord &ir )
 
     // make springs beams
     springsBeams.resize( numberOfFacets );
-    //tempFacetsStressVector.resize( numberOfFacets );
+    tempFacetsStressVector.resize( numberOfFacets );
     //@todo: move to post-initialization, remove override RBSMTetra::setCrossSection
     int number, startPoint, endPoint;
     endPoint = centerDofmanager;
@@ -178,13 +178,14 @@ void RBSMTetra ::updateLocalNumbering( EntityRenumberingFunctor &f )
 void RBSMTetra::giveInternalForcesVector(FloatArray &answer,
     TimeStep *tStep, int useUpdatedGpRecord)
 {
+    // calculate the 3D stress on each facet //todo: make it a separated sub
     int numberOfFacets = 4;
     FloatArray bsStressVector;
     for ( int i = 0; i < numberOfFacets; ++i ) {
+        this->tempFacetsStressVector[i].zero();
         if ( this->springsBeams[i].isEmpty() ) {
             continue;
         }
-        //this->tempFacetsStressVector[i].zero()
         for ( int sb : springsBeams[i] ) {
 #if defined MINDLIN
             RBSMBeam3d *springsBeam = dynamic_cast<RBSMBeam3d *>( domain->giveElement( sb ) );
@@ -201,13 +202,47 @@ void RBSMTetra::giveInternalForcesVector(FloatArray &answer,
             }
             // calculate stresses:
             springsBeam->RBSMTetraInterface_computeStressVector( bsStressVector, tStep );
-            //this->tempFacetsStressVector[i].add( bsStressVector );
+            this->tempFacetsStressVector[i].add( bsStressVector );
         }
     }
 
+    // rigid body does not have InternalForcesVector
+    answer.resize( 0 );
+    return;
+}
 
-
-
+std::vector<FloatArray> RBSMTetra::giveConfiningStress(int nFacet)
+{
+    int numberOfFacets = 4;
+    FloatArray bsStressVector, bsConfStressVector, tempStress;
+    bsConfStressVector.resize( 6 );
+    tempStress.resize( 6 );
+    for ( int i = 0; i < numberOfFacets; ++i ) {
+        tempStress.zero();
+        tempStress.at( 2 ) = this->tempFacetsStressVector[i].at( 2 );
+        tempStress.at( 3 ) = this->tempFacetsStressVector[i].at( 3 );
+        if ( this->springsBeams[i].isEmpty() ) {
+            continue;
+        }
+        for ( int sb : springsBeams[i] ) {
+#if defined MINDLIN
+            RBSMBeam3d *springsBeam = dynamic_cast<RBSMBeam3d *>( domain->giveElement( sb ) );
+#else
+            RBSBeam3d *springsBeam = dynamic_cast<RBSBeam3d *>( domain->giveElement( sb ) );
+            OOFEM_ERROR(
+                "face %d of element %d points to RBSBeam3d springs which don't support confined stress",
+                i + 1, number );
+#endif
+            if ( !springsBeam ) {
+                OOFEM_ERROR(
+                    "face %d of element %d points to an invalid element for its springs",
+                    i + 1, number );
+            }
+            // calculate stresses:
+            springsBeam->RBSMTetraInterface_computeStressVector( bsStressVector, tStep );
+            this->tempFacetsStressVector[i].add( bsStressVector );
+        }
+    }
 
     // rigid body does not have InternalForcesVector
     answer.resize( 0 );

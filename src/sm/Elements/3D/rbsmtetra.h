@@ -119,6 +119,13 @@ public:
      */
     std::vector<FloatArray> giveFiberZonesOffsetsOfFacet_3TriaDissect( int nFacet );
 
+    /**
+     * calculates confining stress of facet
+     * @param nFacet the number of targeted facet of the element
+     * @return confining stress vector
+     */
+    std::vector<FloatArray> giveConfiningStress( int nFacet );
+
     void initializeFrom(InputRecord &ir) override;
 
     void postInitialize() override;
