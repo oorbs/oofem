@@ -73,6 +73,9 @@ protected:
     int referenceNode;
     FloatArray zaxis;
 
+    // Tensor transformation matrices
+    FloatMatrixF< 6, 6 >  stressTransL2g, stressTransG2l;
+
 
 public:
     RBSMBeam3d( int n, Domain *d );
@@ -89,10 +92,20 @@ public:
     const char *giveInputRecordName() const override { return _IFT_RBSMBeam3d_Name; }
     void initialize();
     void initializeFrom( InputRecord &ir ) override;
+    void postInitialize() override;
 
     virtual void setNumberOfGaussPoints( int nip );
     void RBSMTetraInterface_computeStressVector( FloatArray &answer, TimeStep *tStep );
-
+    /**
+     * Computes stress rotation matrix
+     * @param l2g If true, returns local to global rotation (use false for global to local)
+     */
+    FloatMatrixF<6, 6> RBSMTetraInterface_computeStressTransformationMatrix( bool isL2g = true );
+    /**
+     * Returns stress rotation matrix
+     * @param l2g If true, returns local to global, otherwise global to local rotation matrix
+     */
+    FloatMatrixF<6, 6> RBSMTetraInterface_giveStressTransformationMatrix( bool isL2g = true );
 
 protected:
     void giveInternalForcesVectorAtPoint( FloatArray &answer, TimeStep *tStep, FloatArray &coords );

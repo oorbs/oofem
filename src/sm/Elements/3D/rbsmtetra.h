@@ -124,7 +124,7 @@ public:
      * @param nFacet the number of targeted facet of the element
      * @return confining stress vector
      */
-    std::vector<FloatArray> giveConfiningStress( int nFacet );
+    std::vector<FloatArray> giveConfiningStress( int nFacet, TimeStep *tStep );
 
     void initializeFrom(InputRecord &ir) override;
 

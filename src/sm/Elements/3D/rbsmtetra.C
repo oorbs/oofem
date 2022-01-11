@@ -202,6 +202,9 @@ void RBSMTetra::giveInternalForcesVector(FloatArray &answer,
             }
             // calculate stresses:
             springsBeam->RBSMTetraInterface_computeStressVector( bsStressVector, tStep );
+            bsStressVector.beProductOf(
+                springsBeam->RBSMTetraInterface_giveStressTransformationMatrix( true ),
+                bsStressVector );
             this->tempFacetsStressVector[i].add( bsStressVector );
         }
     }
@@ -211,19 +214,22 @@ void RBSMTetra::giveInternalForcesVector(FloatArray &answer,
     return;
 }
 
-std::vector<FloatArray> RBSMTetra::giveConfiningStress(int nFacet)
+std::vector<FloatArray> RBSMTetra::giveConfiningStress( int nFacet, TimeStep *tStep )
 {
     int numberOfFacets = 4;
     FloatArray bsStressVector, bsConfStressVector, tempStress;
+    std::vector<FloatArray> answer;
     bsConfStressVector.resize( 6 );
     tempStress.resize( 6 );
     for ( int i = 0; i < numberOfFacets; ++i ) {
-        tempStress.zero();
-        tempStress.at( 2 ) = this->tempFacetsStressVector[i].at( 2 );
-        tempStress.at( 3 ) = this->tempFacetsStressVector[i].at( 3 );
+        // skip a facet without springs
         if ( this->springsBeams[i].isEmpty() ) {
             continue;
         }
+        // confining stress of facet
+        tempStress.zero();
+        tempStress.at( 2 ) = this->tempFacetsStressVector[i].at( 2 );
+        tempStress.at( 3 ) = this->tempFacetsStressVector[i].at( 3 );
         for ( int sb : springsBeams[i] ) {
 #if defined MINDLIN
             RBSMBeam3d *springsBeam = dynamic_cast<RBSMBeam3d *>( domain->giveElement( sb ) );
@@ -244,9 +250,7 @@ std::vector<FloatArray> RBSMTetra::giveConfiningStress(int nFacet)
         }
     }
 
-    // rigid body does not have InternalForcesVector
-    answer.resize( 0 );
-    return;
+    return answer;
 }
 
 void RBSMTetra::giveCharacteristicMatrix( FloatMatrix &answer, CharType type, TimeStep *tStep )
@@ -750,7 +754,6 @@ int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
         element->setParallelMode(Element_local);
 
         // Springs element
-
         if (
 #if defined MINDLIN
             auto sprElement = dynamic_cast <RBSMBeam3d *>( element.get() )
@@ -759,6 +762,9 @@ int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
 #endif
             )
         {
+            // set transformation matrices
+            // sprElement->initialize(); // currently does nothing
+            // set number of Gauss points
             sprElement->setNumberOfGaussPoints( numberOfIntPnt );
             //elem->referenceAngle = 0; // is already set to 0
             // use condensed DOF for failed moment springs?

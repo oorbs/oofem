@@ -78,7 +78,6 @@ RBSMBeam3d::~RBSMBeam3d()
 
 void RBSMBeam3d::initialize()
 {
-    // move initialization to here from rbsmtetra.C "instantiate beam element"
 }
 
 
@@ -232,6 +231,32 @@ void RBSMBeam3d::RBSMTetraInterface_computeStressVector( FloatArray &answer, Tim
         return;
     }
     OOFEM_ERROR( "Could not obtain stress of the RBS-Mindlin beam element")
+}
+
+void RBSMBeam3d::postInitialize()
+{
+    LIBeam3d::postInitialize();
+
+    // calculate T_g2l and T_l2g
+    bool l2g = true, g2l = false;
+    this->stressTransL2g = this->RBSMTetraInterface_computeStressTransformationMatrix( l2g );
+    this->stressTransG2l = this->RBSMTetraInterface_computeStressTransformationMatrix( g2l );
+}
+
+FloatMatrixF< 6, 6 > RBSMBeam3d::RBSMTetraInterface_computeStressTransformationMatrix( bool isL2g )
+{
+    FloatMatrix lcs;
+    this->giveLocalCoordinateSystem( lcs );
+    return StructuralMaterial::giveStressVectorTranformationMtrx( lcs, isL2g );
+}
+
+FloatMatrixF< 6, 6 > RBSMBeam3d::RBSMTetraInterface_giveStressTransformationMatrix( bool isL2g )
+{
+    if (isL2g) {
+        return this->stressTransL2g;
+    } else {
+        return this->stressTransG2l;
+    }
 }
 
 } // end namespace oofem
