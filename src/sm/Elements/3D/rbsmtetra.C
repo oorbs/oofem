@@ -59,9 +59,7 @@
 
 namespace oofem {
 REGISTER_Element( RBSMTetra );
-
-// use Mindlin beam (RBSBeam3d=>RBSMBeam3D)
-#define MINDLIN
+// moved #define MINDLIN to header file (RBSBeam3d=>RBSMBeam3D)
 
 // S: todo: update or confirm
 FEI3dTetLin RBSMTetra::interpolation;
@@ -186,7 +184,9 @@ void RBSMTetra::giveInternalForcesVector(FloatArray &answer,
         if ( this->springsBeams[i].isEmpty() ) {
             continue;
         }
+        int c = 0; //counter
         for ( int sb : springsBeams[i] ) {
+            c++;
 #if defined MINDLIN
             RBSMBeam3d *springsBeam = dynamic_cast<RBSMBeam3d *>( domain->giveElement( sb ) );
 #else
@@ -202,10 +202,20 @@ void RBSMTetra::giveInternalForcesVector(FloatArray &answer,
             }
             // calculate stresses:
             springsBeam->RBSMTetraInterface_computeStressVector( bsStressVector, tStep );
-            bsStressVector.beProductOf(
-                springsBeam->RBSMTetraInterface_giveStressTransformationMatrix( true ),
-                bsStressVector );
+            // transform to local (commented out)
+            //bsStressVector.beProductOf(
+            //    springsBeam->RBSMTetraInterface_giveStressTransformationMatrix( true ),
+            //    bsStressVector );
+            // Even if there are multiple beams on same face,
+            // in original RBSM the direction should be perpendicular to facet, so
+            // they all have the same local coordinates and are added directly
+            ///todo: make direction of the beam perpendicular to the facet direction
             this->tempFacetsStressVector[i].add( bsStressVector );
+        }
+        if ( c > 1 ) {
+            // this is not a common practice in 3D modeling yet, check preprocessing
+            OOFEM_ERROR( "3DR element No. %d connects to %d elements on one facet",
+                this->giveGlobalNumber(), c );
         }
     }
 
@@ -214,42 +224,88 @@ void RBSMTetra::giveInternalForcesVector(FloatArray &answer,
     return;
 }
 
-std::vector<FloatArray> RBSMTetra::giveConfiningStress( int nFacet, TimeStep *tStep )
+FloatArray RBSMTetra::giveConfiningStress( int nFacet, TimeStep *tStep )
 {
     int numberOfFacets = 4;
-    FloatArray bsStressVector, bsConfStressVector, tempStress;
-    std::vector<FloatArray> answer;
+    FloatArray tempStress;
+    FloatArray bsConfStressVector;
+    FloatArray targetDir, siblingDir;
+    FloatMatrix lcs;
     bsConfStressVector.resize( 6 );
     tempStress.resize( 6 );
-    for ( int i = 0; i < numberOfFacets; ++i ) {
-        // skip a facet without springs
-        if ( this->springsBeams[i].isEmpty() ) {
-            continue;
-        }
-        // confining stress of facet
-        tempStress.zero();
-        tempStress.at( 2 ) = this->tempFacetsStressVector[i].at( 2 );
-        tempStress.at( 3 ) = this->tempFacetsStressVector[i].at( 3 );
-        for ( int sb : springsBeams[i] ) {
-#if defined MINDLIN
-            RBSMBeam3d *springsBeam = dynamic_cast<RBSMBeam3d *>( domain->giveElement( sb ) );
-#else
-            RBSBeam3d *springsBeam = dynamic_cast<RBSBeam3d *>( domain->giveElement( sb ) );
-            OOFEM_ERROR(
-                "face %d of element %d points to RBSBeam3d springs which don't support confined stress",
-                i + 1, number );
-#endif
-            if ( !springsBeam ) {
-                OOFEM_ERROR(
-                    "face %d of element %d points to an invalid element for its springs",
-                    i + 1, number );
-            }
-            // calculate stresses:
-            springsBeam->RBSMTetraInterface_computeStressVector( bsStressVector, tStep );
-            this->tempFacetsStressVector[i].add( bsStressVector );
-        }
+    bsConfStressVector.zero();
+    RBSMBeam3d *targetSB = this->giveSpringsBeamOfFacet( nFacet );
+
+    // unit vector of the target facet
+    //todo: speedup! no need to ask for lcs everytime.
+    //todo: critical! Dir (x direction) should be perpendicular to facet.
+    targetSB->giveLocalCoordinateSystem( lcs );
+    for ( int i = 1; i <= 3; ++i ) {
+        targetDir = lcs.at( 1, i );
     }
 
+    for ( int i = 0; i < numberOfFacets; ++i ) {
+        // skip current facet or a facet without springs
+        if ( i == nFacet || this->springsBeams[i].isEmpty() ) {
+            continue;
+        } else if ( springsBeams[i].giveSize() > 1 ) {
+            // this is not a common practice in 3D modeling yet, check preprocessing
+            OOFEM_ERROR( "3DR element No. %d connects to %d elements on one facet",
+                this->giveGlobalNumber(), springsBeams[i].giveSize() );
+        }
+        // facet first beam todo: if multiple beams allowed, loop "for ( int sb : springsBeams[i] )"
+        RBSMBeam3d *facetSB = this->giveSpringsBeamOfFacet( i );
+        if ( !facetSB ) { // this check may not be necessary
+            OOFEM_ERROR(
+                "face %d of element %d points to an invalid element for its springs",
+                i + 1, number );
+        }
+
+        // unit vector of the target facet
+        //todo: speedup! no need to ask for lcs everytime.
+        //todo: critical! Dir (x direction) should be prependicular to facet.
+        facetSB->giveLocalCoordinateSystem( lcs );
+        for ( int i = 1; i <= 3; ++i ) {
+            siblingDir = lcs.at( 1, i );
+        }
+        // Calculating weight of contribution
+        //todo: critical! weight the tempStress contribution
+        siblingDir.beVectorProductOf( siblingDir, targetDir );
+        double w = facetSB->giveLengthInDir()
+
+        // confining stress of facet i
+        tempStress.zero();
+        tempStress.at( 2 ) = this->tempFacetsStressVector[i].at( 2 ) * weight;
+        tempStress.at( 3 ) = this->tempFacetsStressVector[i].at( 3 ) * weight;
+        // convert from sibling face local to global
+        tempStress.beProductOf(
+            facetSB->RBSMTetraInterface_giveStressTransformationMatrix( true ),
+            tempStress );
+        // convert from global to target face local
+        tempStress.beProductOf(
+            targetSB->RBSMTetraInterface_giveStressTransformationMatrix( false ),
+            tempStress );
+        // add and go for next
+        bsConfStressVector.add( tempStress );
+    }
+
+    return bsConfStressVector;
+}
+
+RBSMBeam3d *RBSMTetra::giveSpringsBeamOfFacet( int nFacet )
+{
+#if defined MINDLIN
+    RBSMBeam3d *answer = dynamic_cast<RBSMBeam3d *>(
+        domain->giveElement( this->springsBeams[nFacet].at( 1 ) ) );
+#else
+    RBSBeam3d *answer = dynamic_cast<RBSBeam3d *>(
+        domain->giveElement( this->springsBeams[nFacet].at( 1 ) ) );
+#endif
+    if ( !answer ) {
+        OOFEM_ERROR(
+            "face %d of 3DR element No. %d points to an invalid element for its springs",
+            nFacet, this->globalNumber );
+    }
     return answer;
 }
 

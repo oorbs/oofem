@@ -105,65 +105,65 @@ void RBSMBeam3d::initializeFrom( InputRecord &ir )
 
 int RBSMBeam3d :: giveLocalCoordinateSystem(FloatMatrix &answer)
 {
-FloatArray lx, ly, lz, help(3);
-Node *nodeA, *nodeB;
-nodeA = this->giveNode(1);
-nodeB = this->giveNode(2);
+    FloatArray lx, ly, lz, help( 3 );
+    Node *nodeA, *nodeB;
+    nodeA = this->giveNode( 1 );
+    nodeB = this->giveNode( 2 );
 
-lx.beDifferenceOf( nodeB->giveCoordinates(), nodeA->giveCoordinates() );
-lx.normalize();
+    lx.beDifferenceOf( nodeB->giveCoordinates(), nodeA->giveCoordinates() );
+    lx.normalize();
 
-if ( this->referenceNode ) {
-Node *refNode = this->giveDomain()->giveNode(this->referenceNode);
-help.beDifferenceOf( refNode->giveCoordinates(), nodeA->giveCoordinates() );
+    if ( this->referenceNode ) {
+        Node *refNode = this->giveDomain()->giveNode( this->referenceNode );
+        help.beDifferenceOf( refNode->giveCoordinates(), nodeA->giveCoordinates() );
 
-lz.beVectorProductOf(lx, help);
-lz.normalize();
-} else if ( this->zaxis.giveSize() > 0 ) {
-lz = this->zaxis;
-lz.add(lz.dotProduct(lx), lx);
-lz.normalize();
-} else {
-FloatMatrix rot(3, 3);
-double theta = referenceAngle * M_PI / 180.0;
+        lz.beVectorProductOf( lx, help );
+        lz.normalize();
+    } else if ( this->zaxis.giveSize() > 0 ) {
+        lz = this->zaxis;
+        lz.add( lz.dotProduct( lx ), lx );
+        lz.normalize();
+    } else {
+        FloatMatrix rot( 3, 3 );
+        double theta = referenceAngle * M_PI / 180.0;
 
-rot.at(1, 1) = cos(theta) + pow(lx.at(1), 2) * ( 1 - cos(theta) );
-rot.at(1, 2) = lx.at(1) * lx.at(2) * ( 1 - cos(theta) ) - lx.at(3) * sin(theta);
-rot.at(1, 3) = lx.at(1) * lx.at(3) * ( 1 - cos(theta) ) + lx.at(2) * sin(theta);
+        rot.at( 1, 1 ) = cos( theta ) + pow( lx.at( 1 ), 2 ) * ( 1 - cos( theta ) );
+        rot.at( 1, 2 ) = lx.at( 1 ) * lx.at( 2 ) * ( 1 - cos( theta ) ) - lx.at( 3 ) * sin( theta );
+        rot.at( 1, 3 ) = lx.at( 1 ) * lx.at( 3 ) * ( 1 - cos( theta ) ) + lx.at( 2 ) * sin( theta );
 
-rot.at(2, 1) = lx.at(2) * lx.at(1) * ( 1 - cos(theta) ) + lx.at(3) * sin(theta);
-rot.at(2, 2) = cos(theta) + pow(lx.at(2), 2) * ( 1 - cos(theta) );
-rot.at(2, 3) = lx.at(2) * lx.at(3) * ( 1 - cos(theta) ) - lx.at(1) * sin(theta);
+        rot.at( 2, 1 ) = lx.at( 2 ) * lx.at( 1 ) * ( 1 - cos( theta ) ) + lx.at( 3 ) * sin( theta );
+        rot.at( 2, 2 ) = cos( theta ) + pow( lx.at( 2 ), 2 ) * ( 1 - cos( theta ) );
+        rot.at( 2, 3 ) = lx.at( 2 ) * lx.at( 3 ) * ( 1 - cos( theta ) ) - lx.at( 1 ) * sin( theta );
 
-rot.at(3, 1) = lx.at(3) * lx.at(1) * ( 1 - cos(theta) ) - lx.at(2) * sin(theta);
-rot.at(3, 2) = lx.at(3) * lx.at(2) * ( 1 - cos(theta) ) + lx.at(1) * sin(theta);
-rot.at(3, 3) = cos(theta) + pow(lx.at(3), 2) * ( 1 - cos(theta) );
+        rot.at( 3, 1 ) = lx.at( 3 ) * lx.at( 1 ) * ( 1 - cos( theta ) ) - lx.at( 2 ) * sin( theta );
+        rot.at( 3, 2 ) = lx.at( 3 ) * lx.at( 2 ) * ( 1 - cos( theta ) ) + lx.at( 1 ) * sin( theta );
+        rot.at( 3, 3 ) = cos( theta ) + pow( lx.at( 3 ), 2 ) * ( 1 - cos( theta ) );
 
-help.at(3) = 1.0;         // up-vector
-// here is ly is used as a temp var
-if ( fabs( lx.dotProduct(help) ) > 0.999 ) { // Check if it is vertical
-ly = {
-    0., 1., 0.
-};
-} else {
-ly.beVectorProductOf(lx, help);
-}
-lz.beProductOf(rot, ly);
-lz.normalize();
-}
+        help.at( 3 ) = 1.0; // up-vector
+        // here is ly is used as a temp var
+        if ( fabs( lx.dotProduct( help ) ) > 0.999 ) { // Check if it is vertical
+            ly = {
+                0., 1., 0.
+            };
+        } else {
+            ly.beVectorProductOf( lx, help );
+        }
+        lz.beProductOf( rot, ly );
+        lz.normalize();
+    }
 
-ly.beVectorProductOf(lz, lx);
-ly.normalize();
+    ly.beVectorProductOf( lz, lx );
+    ly.normalize();
 
-answer.resize(3, 3);
-answer.zero();
-for ( int i = 1; i <= 3; i++ ) {
-answer.at(1, i) = lx.at(i);
-answer.at(2, i) = ly.at(i);
-answer.at(3, i) = lz.at(i);
-}
+    answer.resize( 3, 3 );
+    answer.zero();
+    for ( int i = 1; i <= 3; i++ ) {
+        answer.at( 1, i ) = lx.at( i );
+        answer.at( 2, i ) = ly.at( i );
+        answer.at( 3, i ) = lz.at( i );
+    }
 
-return 1;
+    return 1;
 }
 
 

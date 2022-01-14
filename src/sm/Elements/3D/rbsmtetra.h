@@ -47,9 +47,12 @@
 #include "oofemtxtinputrecord.h"
 
 #define _IFT_RBSMTetra_Name "rbsmtetra"
+#define MINDLIN
 
 namespace oofem {
 class FEI3dTetLin;
+class RBSMBeam3d;
+class RBSBeam3d;
 
 /**
  * This class implements a tetrahedral rigid body - spring model.
@@ -124,7 +127,7 @@ public:
      * @param nFacet the number of targeted facet of the element
      * @return confining stress vector
      */
-    std::vector<FloatArray> giveConfiningStress( int nFacet, TimeStep *tStep );
+    FloatArray giveConfiningStress( int nFacet, TimeStep *tStep );
 
     void initializeFrom(InputRecord &ir) override;
 
@@ -259,6 +262,11 @@ protected:
     /// update the facet to element map
     ///@return map of existing sister element for each facet
     std::map<int, IntArray> updateCellElementsOfFacets();
+#ifdef MINDLIN
+    RBSMBeam3d *giveSpringsBeamOfFacet( int nFacet );
+#else
+    RBSBeam3d *giveSpringsBeamOfFacet( int nFacet );
+#endif
 };
 
 /**
