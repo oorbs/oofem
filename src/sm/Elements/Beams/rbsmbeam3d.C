@@ -195,12 +195,11 @@ void RBSMBeam3d::setNumberOfGaussPoints( int nip )
     numberOfGaussPoints = nip;
 }
 
-// put this in an interface:
 // (v-2.5) calculate confined stresses to apply Poisson's effect:
 void RBSMBeam3d::RBSMTetraInterface_computeStressVector( FloatArray &answer, TimeStep *tStep )
 //, int useUpdatedGpRecord )
 {
-    /// todo: separate strain calculation from stress calculation
+    /// todo: separate _computeStrainVector from _computeStressVector
     FloatMatrix b;
     FloatArray u, stress, strain;
 

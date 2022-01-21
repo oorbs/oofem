@@ -103,8 +103,15 @@ FloatArrayF<6> RBSFiberedCrossSection::giveGeneralizedStress_Beam3d( const Float
         double shearArea = shearCoef * fiberArea;
 
         interface->FiberedCrossSectionInterface_computeStrainVectorInFiber(fiberStrain, strain, fiberGp, tStep);
-
         auto reducedFiberStress = fiberMat->giveRealStressVector_Fiber(fiberStrain, fiberGp, tStep);
+
+        // add PR confined stresses using mask since fiber stress is reduced
+        IntArray mask;
+        StructuralMaterial :: giveVoigtSymVectorMask(mask, _Fiber);
+        for ( int j = 1; j <= mask.giveSize(); ++j ) {
+            // add effect of confined stresses @PR
+            reducedFiberStress.at( j ) += this->tempPRStressVector.at( mask.at( j ) );
+        }
 
         // perform integration
         //
@@ -119,9 +126,6 @@ FloatArrayF<6> RBSFiberedCrossSection::giveGeneralizedStress_Beam3d( const Float
         // 2) bending terms Tx, My, Mz
         answer.at(4) += reducedFiberStress.at(2) * fiberArea * fiberYCoord
                       - reducedFiberStress.at(3) * fiberArea * fiberZCoord;
-#if 0 // assign zero strain to ignore the effect of torsion
-        answer.at(4) = 0;
-#endif
         answer.at(5) += reducedFiberStress.at(1) * fiberArea * fiberZCoord;
         answer.at(6) -= reducedFiberStress.at(1) * fiberArea * fiberYCoord;
     }
@@ -161,8 +165,8 @@ FloatArrayF<6> RBSFiberedCrossSection::giveRealStress_3d( const FloatArrayF<6> &
         FloatArray fullFiberStress;
         //FloatArray reducedFiberStress;
         interface->FiberedCrossSectionInterface_computeStrainVectorInFiber( reducedFiberStrain, strain, fiberGp, tStep);
-        for ( int i = 1; i <= maskStrainControl.giveSize(); ++i ) {
-            fullFiberStrain.at(maskStrainControl.at(i) ) = reducedFiberStrain.at(i);
+        for ( int j = 1; j <= maskStrainControl.giveSize(); ++j ) {
+            fullFiberStrain.at( maskStrainControl.at( j ) ) = reducedFiberStrain.at( j );
         }
 
         //reducedFiberStress = fiberMat->giveRealStressVector_Fiber( reducedFiberStrain, fiberGp, tStep);
@@ -175,8 +179,12 @@ FloatArrayF<6> RBSFiberedCrossSection::giveRealStress_3d( const FloatArrayF<6> &
         answer.at(5) += fullFiberStress.at(5) * fiberArea;
         answer.at(6) += fullFiberStress.at(6) * fiberArea;
     }
-    answer = answer * ( 1. / Area );
-
+    // add PR confined stresses
+    for ( int i = 1; i <= 6; ++i ) {
+        answer.at( i ) *= ( 1. / Area );
+        // add effect of confined stresses @PR
+        answer.at( i ) += this->tempPRStressVector.at( i );
+    }
     // update temp stresses if needed
 //    auto status = static_cast<StructuralMaterialStatus *>( domain->giveMaterial( fiberMaterials.at( 1 ) )->giveStatus( gp ) );
 //    status->letTempStrainVectorBe(strain);

@@ -231,9 +231,13 @@ FloatArray RBSMTetra::giveConfiningStress( int nFacet, TimeStep *tStep )
     FloatArray bsConfStressVector;
     FloatArray targetDir, siblingDir;
     FloatMatrix lcs;
+    //double Area;
     bsConfStressVector.resize( 6 );
-    tempStress.resize( 6 );
     bsConfStressVector.zero();
+    tempStress.resize( 6 );
+    targetDir.resize( 3 );
+    siblingDir.resize( 3 );
+
     RBSMBeam3d *targetSB = this->giveSpringsBeamOfFacet( nFacet );
 
     // unit vector of the target facet
@@ -266,22 +270,21 @@ FloatArray RBSMTetra::giveConfiningStress( int nFacet, TimeStep *tStep )
         //todo: critical! Dir (x direction) should be prependicular to facet.
         facetSB->giveLocalCoordinateSystem( lcs );
         for ( int i = 1; i <= 3; ++i ) {
-            siblingDir = lcs.at( 1, i );
+            siblingDir.at(i) = lcs.at( 1, i );
         }
         // Calculating weight of contribution
-        //todo: critical! weight the tempStress contribution
         siblingDir.beVectorProductOf( siblingDir, targetDir );
-        double w = facetSB->giveLengthInDir()
+        double w = this->giveAreaOfFacet( i ) * siblingDir.computeNorm();
 
         // confining stress of facet i
         tempStress.zero();
-        tempStress.at( 2 ) = this->tempFacetsStressVector[i].at( 2 ) * weight;
-        tempStress.at( 3 ) = this->tempFacetsStressVector[i].at( 3 ) * weight;
-        // convert from sibling face local to global
+        tempStress.at( 2 ) = this->tempFacetsStressVector[i].at( 2 ) * w;
+        tempStress.at( 3 ) = this->tempFacetsStressVector[i].at( 3 ) * w;
+        // convert from sibling face's local to global
         tempStress.beProductOf(
             facetSB->RBSMTetraInterface_giveStressTransformationMatrix( true ),
             tempStress );
-        // convert from global to target face local
+        // convert from global to target face's local
         tempStress.beProductOf(
             targetSB->RBSMTetraInterface_giveStressTransformationMatrix( false ),
             tempStress );

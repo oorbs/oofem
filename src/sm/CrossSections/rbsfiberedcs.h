@@ -66,6 +66,10 @@ class GaussPoint;
  */
 class RBSFiberedCrossSection : public FiberedCrossSection
 {
+public:
+    /// stress of Poisson's ratio in rigid body todo: this should not be in CS and public
+    FloatArray tempPRStressVector = FloatArray{ 0., 0., 0., 0., 0., 0. };
+
 protected:
 
 public:

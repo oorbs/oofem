@@ -45,7 +45,7 @@
 
 namespace oofem {
 #define ZERO 1.E-6
-#define CONFINED_STRESS_CONTROL     // override the stress control reduction
+#define DONT_ELIMINATE_CONFINED_STRESS_CONTROL // override the stress control reduction
 //#define USE_DIAGONAL_STIFFNESS    // don't use with CONFINED_STRESS_CONTROL
 //#define MAKE_DIAGONAL_STIFFNESS   // only use with USE_DIAGONAL_STIFFNESS
 //#define ALLOW_TMODULUS            //
@@ -497,7 +497,7 @@ FloatArrayF<6> RBSConcrete1::giveRealStressVector_3dBeamSubSoil( const FloatArra
 FloatArray RBSConcrete1::giveRealStressVector_StressControl(
     const FloatArray &reducedStrain, const IntArray &strainControl, GaussPoint *gp, TimeStep *tStep ) const
 {
-#ifdef CONFINED_STRESS_CONTROL
+#ifdef DONT_ELIMINATE_CONFINED_STRESS_CONTROL
     auto status = static_cast< StructuralMaterialStatus * >( this->giveStatus(gp) );
 
     IntArray stressControl;
@@ -523,7 +523,7 @@ FloatArray RBSConcrete1::giveRealStressVector_StressControl(
     vS = this->giveRealStressVector_3d(vE, gp, tStep);
 
     // Pick out the (response) stresses for the controlled strains
-    answer.beSubArrayOf(vS, strainControl);
+    answer.beSubArrayOf( vS, strainControl );
 
     // the default implementation is to eliminate stress control,
     // reducedvS.beSubArrayOf(vS, stressControl);
@@ -538,7 +538,7 @@ FloatArray RBSConcrete1::giveRealStressVector_StressControl(
     // }
     // but for RBSM we keep these stresses (confined condition):
     return answer;
-#else
+#else // Just use the typical stress control from structural material class
     return StructuralMaterial::giveRealStressVector_StressControl(reducedStrain, strainControl, gp, tStep);
 #endif
 }
