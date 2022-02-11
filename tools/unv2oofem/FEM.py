@@ -3,6 +3,8 @@ Created on Aug 5, 2013
 
 @author: carl
 '''
+import numpy
+
 
 class FEM:
     """ a simple FEM object structure"""
@@ -44,7 +46,7 @@ class Group:
 
 def Line2Float(line):
     """Convert a string into a list of Float"""
-    return [float(x) for x in line.split()]
+    return [numpy.float(x.replace('D', 'E')) for x in line.split()]  # added support for 2D GMSH
 
 def Line2Int(line):
     """Convert a string into a list of Int"""
