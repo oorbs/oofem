@@ -180,6 +180,7 @@ FloatArrayF<6> RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &tota
     // subtract stress thermal expansion
     auto thermalStrain = this->computeStressIndependentStrainVector_3d( gp, tStep, VM_Total );
     auto strain = totalStrain - thermalStrain;
+    FloatArrayF<6> PRS;
 
     // subtract plastic strains
     auto plasticStrain = status->givePlasticStrain();
@@ -220,6 +221,8 @@ FloatArrayF<6> RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &tota
     double trialShearStress1 = trialStress.at( 5 );
     double trialShearStress2 = trialStress.at( 6 );
 
+    FloatArrayF<6> stress = trialStress;
+
     // Stress signs
     auto signN0 = sgn( trialElasticStrain.at( 1 ) );
     auto signS1 = sgn( trialElasticStrain.at( 5 ) );
@@ -241,9 +244,6 @@ FloatArrayF<6> RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &tota
     //auto [devTrialStress, meanTrialStress] = computeDeviatoricVolumetricSplit(); // c++17
     //double J2 = this->computeSecondStressInvariant(devTrialStress);
 
-    FloatArrayF<6> stress;
-    stress = trialStress;
-
     /// Spring nonlinear curve state
     int nKn0        = status->giveNormalState();
     int nKs1        = status->giveShearState1();
@@ -255,7 +255,7 @@ FloatArrayF<6> RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &tota
     // 1. Normal stress correction
 
     // evaluate the yield surface
-    double sigma_yt = this->ft + H * k;    ///fixme!
+    double sigma_yt = this->ft + H * k;
     double tr_f = trialNormalStress - sigma_yt;
 
     if ( nKn0 ) {
@@ -278,22 +278,23 @@ FloatArrayF<6> RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &tota
             nKn0            = 1;
 #ifndef USE_DIAGONAL_STIFFNESS
             // to prevent problems with inner iterative method of structural material
-            stress.at( 2 ) = 0.;
-            stress.at( 3 ) = 0.;
+            stress.at( 2 ) = 0.;  /// todo: remove: will be corrected using corRatio
+            stress.at( 3 ) = 0.;  ///
 #endif
         }
         stress.at( 1 ) = corNormalStress;
+        // correct confined stresses:
+        double corRatio = trialNormalStress == 0. ? 1. : corNormalStress / trialNormalStress;
+        if ( corRatio < 0. || corRatio != corRatio ) {
+            OOFEM_ERROR( "Invalid stress calculation");
+        }
+        stress.at( 2 ) = stress.at( 2 ) * corRatio;
+        stress.at( 3 ) = stress.at( 3 ) * corRatio;
+        //
         k += dPlStrain;
 
         //auto plasticStrain = status->givePlasticStrain();
         plasticStrain.at( 1 ) += dPlStrain;
-        // FOR NON-DIAGONAL [D]: this is wrong for PR is calculated from stress vect
-        // + remove the Poisson effect's strains by making them part of plastic strain
-        // plasticStrain.at( 2 ) -= this->nu * dPlStrain;
-        // plasticStrain.at( 3 ) -= this->nu * dPlStrain;
-        // - another option is to remove these strains from strain vector:
-        // totalStrain.at( 2 ) -= this->nu * dPlStrain;
-        // totalStrain.at( 3 ) -= this->nu * dPlStrain;
     }
 
 
@@ -493,7 +494,7 @@ FloatArrayF<6> RBSConcrete1::giveRealStressVector_3dBeamSubSoil( const FloatArra
     return vS;
 }
 
-// (v-2.5) keep confined stresses for redistribution in RBSM element
+// override structural material to keep confined stresses for redistribution in RBSM element
 FloatArray RBSConcrete1::giveRealStressVector_StressControl(
     const FloatArray &reducedStrain, const IntArray &strainControl, GaussPoint *gp, TimeStep *tStep ) const
 {
