@@ -266,6 +266,7 @@ set (sm_material
     Materials/structmatsettable.C
     Materials/tutorialmaterial.C
     Materials/DiscreteModels/rbsconcrete1.C
+    Materials/DiscreteModels/rbsitz.C
     Materials/graddamagematerialextensioninterface.C
     Materials/rcm2.C
     Materials/isodamagemodel.C
