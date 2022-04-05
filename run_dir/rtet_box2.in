@@ -1,8 +1,8 @@
 rtet_box2.out
-Simple Unv
+Simple tetra UNV
 #StaticStructural nsteps 10 nmodules 0
-StaticStructural nsteps 10 nmodules 0 profileopt 1 manrmsteps 10001 maxiter 10000 maxinc .1
-#vtkxml tstep_all domain_all vars 7 1 2 4 5 7 8 12 stype 0
+StaticStructural nsteps 10 nmodules 1 profileopt 1 manrmsteps 10001 maxiter 10000 maxinc .1
+vtkxml tstep_all domain_all vars 1 12 stype 0
 #vtkxml tstep_all domain_all cellvars 2 7 8
 domain 3d
 OutputManager tstep_all dofman_all element_all
