@@ -89,6 +89,7 @@ void RBSMTetra::initializeFrom( InputRecord &ir )
     numberOfGaussPoints = 1;
     numberOfCornerNodes = 4;
     int numberOfFacets  = 4;
+    IR_GIVE_OPTIONAL_FIELD( ir, ItzInterface::itzMaterial, _IFT_RBSMTetra_itz )
 
     // currently we first initialize the element then clone
     // the corner nodes.
@@ -100,8 +101,7 @@ void RBSMTetra::initializeFrom( InputRecord &ir )
     RBSMTetra::updateClonesOfGeoNode();
     RBSMTetra::updateCellElementsOfGeoNode();
 
-    std::map<int, IntArray> existingSisters =
-        RBSMTetra::updateCellElementsOfFacets();
+    existingSisters = RBSMTetra::updateCellElementsOfFacets();
 
     // make springs beams
     springsBeams.resize( numberOfFacets );
@@ -118,7 +118,7 @@ void RBSMTetra::initializeFrom( InputRecord &ir )
                 OOFEM_ERROR( "There are more than 1 adjacent element for elem %d",
                     this->giveGlobalNumber() );
             }
-            if ( RBSMTetra *e = //> make sure sister element is an RBSM element
+            if ( RBSMTetra *ane = //> make sure sister element is an RBSM element
                 dynamic_cast<RBSMTetra *>( domain->giveElement( neesan ) ) ) {
                 std::string name;
                 // guess next available element number from current element number
@@ -126,7 +126,7 @@ void RBSMTetra::initializeFrom( InputRecord &ir )
                 //@todo: should be replaced by a functor that finds next elem number
                 IR_GIVE_RECORD_KEYWORD_FIELD( ir, name, number );
                 number     = nextElementGlobalNumber( number );
-                startPoint = e->giveCellDofmanagerNumber();
+                startPoint = ane->giveCellDofmanagerNumber();
                 number     = RBSMTetra::makeSpringsBeam( number, startPoint, endPoint );
                 springsBeams[facetExistingSisters.first - 1].insertSortedOnce( number );
             }
@@ -138,14 +138,15 @@ void RBSMTetra::postInitialize()
 {
     Element::postInitialize();
 
+    int matNumber;
     int numberOfFacets = 4;
     for ( int i = 0; i < numberOfFacets; ++i ) {
         if ( springsBeams[i].isEmpty() ) {
             continue;
         }
-
-        //int cs = makeSpringsBeamCrossSection_3TriaDissect( i + 1 );
-        int cs = makeSpringsBeamCrossSection_CircularDist( i + 1, 4 );
+        matNumber = this->findSpringsBeamMaterial( i + 1 );
+        //int cs = makeSpringsBeamCrossSection_3TriaDissect( i + 1, matNumber );
+        int cs = makeSpringsBeamCrossSection_CircularDist( i + 1, 4, matNumber );
         for ( int sb : springsBeams[i] ) {
 #if defined MINDLIN
             RBSMBeam3d *springsBeam = dynamic_cast<RBSMBeam3d *>( domain->giveElement( sb ) );
@@ -741,9 +742,11 @@ Interface *RBSMTetra::giveInterface( InterfaceType interface )
         return static_cast< ZZErrorEstimatorInterface * >(this);
     } else if ( interface == HuertaErrorEstimatorInterfaceType ) {
         return static_cast< HuertaErrorEstimatorInterface * >(this);
-    }
+    } else
     */
-
+    if ( interface == ItzInterfaceType ) {
+        return static_cast< ItzInterface * >(this);
+    }
     return NULL;
 }
 
@@ -857,35 +860,36 @@ int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
 
 int RBSMTetra::makeSpringsBeamCrossSection_3TriaDissect( int nFacet )
 {
+    int csNumber                        = domain->giveNumberOfCrossSectionModels() + 1;
+    int numberOfFibers                  = 3;
+    double area                         = this->giveAreaOfFacet( nFacet );
+    double fibArea                      = area / (double)numberOfFibers;
+    double fibDim                       = sqrt( fibArea );
+    double csDim                        = sqrt( area );
+    FloatArray fiberThicks              = { fibDim, fibDim, fibDim };
+    FloatArray fiberWidths              = { fibDim, fibDim, fibDim };
+    double thick                        = csDim;
+    double width                        = csDim;
+    std::vector<FloatArray> fiberCoords = giveFiberZonesOffsetsOfFacet_3TriaDissect( nFacet );
+    FloatArray fiberYcoords, fiberZcoords;
+    FloatMatrix lcs;
+    IntArray fiberMaterials;
+
+    // new empty cross-section
+    std::unique_ptr<RBSFiberedCrossSection> crossSection = std::make_unique<RBSFiberedCrossSection>( csNumber, domain );
+    // hard copy cross-section
+    //FiberedCrossSection *rawPtr = static_cast<FiberedCrossSection *> (this->giveCrossSection());
+    //std::unique_ptr<FiberedCrossSection> crossSection4 = std::make_unique<FiberedCrossSection>( *rawPtr );
+
     std::string csType = this->giveCrossSection()->giveClassName();
     if ( csType == "FiberedCrossSection" ) {
-        int number                          = domain->giveNumberOfCrossSectionModels() + 1;
-        int numberOfFibers                  = 3;
-        double area                         = this->giveAreaOfFacet( nFacet );
-        double fibArea                      = area / (double)numberOfFibers;
-        double fibDim                       = sqrt( fibArea );
-        double csDim                        = sqrt( area );
-        FloatArray fiberThicks              = { fibDim, fibDim, fibDim };
-        FloatArray fiberWidths              = { fibDim, fibDim, fibDim };
-        double thick                        = csDim;
-        double width                        = csDim;
-        std::vector<FloatArray> fiberCoords = giveFiberZonesOffsetsOfFacet_3TriaDissect( nFacet );
-        FloatArray fiberYcoords, fiberZcoords;
-        FloatMatrix lcs;
-        IntArray fiberMaterials;
-        // new empty cross-section
-        std::unique_ptr<RBSFiberedCrossSection> crossSection = std::make_unique<RBSFiberedCrossSection>( number, domain );
-        // hard copy cross-section
-        //FiberedCrossSection *rawPtr = static_cast<FiberedCrossSection *> (this->giveCrossSection());
-        //std::unique_ptr<FiberedCrossSection> crossSection4 = std::make_unique<FiberedCrossSection>( *rawPtr );
-
         if ( springsBeams[nFacet - 1].isEmpty() ) {
             OOFEM_ERROR( "Request to make cross-section for facet %d of element %d"
                          "which does not have any springs beam element",
                 nFacet, this->number );
         } else {
-            // coordinates system of beams (in rare cases of having more than one sister on the same facet) on the same
-            // facet could be different, but the effect is negligible so I will use the first beam.
+            // the coordinates' system of beams (in rare cases of having more than one sister on the same facet)
+            // on the same facet could be different, but the effect is negligible, so I will use the first beam
             Element *b = domain->giveElement( springsBeams[nFacet - 1][0] );
             b->giveLocalCoordinateSystem( lcs );
         }
@@ -935,99 +939,164 @@ int RBSMTetra::makeSpringsBeamCrossSection_3TriaDissect( int nFacet )
             }
         }
 
-        crossSection->initializeFrom( number, fiberMaterials, fiberThicks, fiberWidths,
+        crossSection->initializeFrom( csNumber, fiberMaterials, fiberThicks, fiberWidths,
             numberOfFibers, thick, width, fiberYcoords, fiberZcoords );
-        domain->resizeCrossSectionModels( number );
-        domain->setCrossSection( number, std::move(crossSection) );
+        domain->resizeCrossSectionModels( csNumber );
+        domain->setCrossSection( csNumber, std::move(crossSection) );
 
     } else {
         OOFEM_ERROR( "%s does not support %s, please use fibered section",
             this->giveClassName(), csType.c_str() )
     }
 
-    return number;
+    return csNumber;
 }
-int RBSMTetra::makeSpringsBeamCrossSection_CircularDist( int nFacet, int numberOfFibers )
+int RBSMTetra::makeSpringsBeamCrossSection_CircularDist( int nFacet, int numberOfFibers, int materialNumber )
 {
+    //int matNumber, sisterMatNumber;
+    int csNumber                        = domain->giveNumberOfCrossSectionModels() + 1;
+    numberOfFibers = numberOfFibers > 2 ? numberOfFibers : 3;
+    double area                         = this->giveAreaOfFacet( nFacet );
+    double fibArea                      = area / (double)numberOfFibers;
+    double fibDim                       = sqrt( fibArea );
+    double csDim                        = sqrt( area );
+    double thick                        = csDim;
+    double width                        = csDim;
+    FloatArray fiberThicks( numberOfFibers );
+    FloatArray fiberWidths( numberOfFibers );
+    FloatArray fiberYcoords( numberOfFibers );
+    FloatArray fiberZcoords( numberOfFibers );
+    IntArray fiberMaterials( numberOfFibers );
+    double fibZoneAngle                 = 2. * M_PI / (double)numberOfFibers;
+    double fibZoneOffsetAngle           = fibZoneAngle / 2.;
+    double fibZoneOffsetRadii           = 2. / 3. * sqrt( area * M_1_PI ); // 2/3 * sqrt(area/pi)
+
+    for ( int i = 0; i < numberOfFibers; ++i ) {
+        fiberThicks[i]  = fibDim;
+        fiberWidths[i]  = fibDim;
+        fiberYcoords[i] = sin( (double)i * fibZoneAngle + fibZoneOffsetAngle ) * fibZoneOffsetRadii;
+        fiberZcoords[i] = cos( (double)i * fibZoneAngle + fibZoneOffsetAngle ) * fibZoneOffsetRadii;
+    }
+
+    // there is no need for rigid body CS type restriction
+    /*
     std::string csType = this->giveCrossSection()->giveClassName();
-    if ( csType == "FiberedCrossSection" ) {
-        int number                          = domain->giveNumberOfCrossSectionModels() + 1;
-        numberOfFibers = numberOfFibers > 2 ? numberOfFibers : 3;
-        double area                         = this->giveAreaOfFacet( nFacet );
-        double fibArea                      = area / (double)numberOfFibers;
-        double fibDim                       = sqrt( fibArea );
-        double csDim                        = sqrt( area );
-        double thick                        = csDim;
-        double width                        = csDim;
-        FloatArray fiberThicks( numberOfFibers );
-        FloatArray fiberWidths( numberOfFibers );
-        FloatArray fiberYcoords( numberOfFibers );
-        FloatArray fiberZcoords( numberOfFibers );
-        IntArray fiberMaterials( numberOfFibers );
-        double fibZoneAngle                 = 2. * M_PI / (double)numberOfFibers;
-        double fibZoneOffsetAngle           = fibZoneAngle / 2.;
-        double fibZoneOffsetRadii           = 2. / 3. * sqrt( area * M_1_PI ); // 2/3 * sqrt(area/pi)
-
-        for ( int i = 0; i < numberOfFibers; ++i ) {
-            fiberThicks[i]  = fibDim;
-            fiberWidths[i]  = fibDim;
-            fiberYcoords[i] = sin( (double)i * fibZoneAngle + fibZoneOffsetAngle ) * fibZoneOffsetRadii;
-            fiberZcoords[i] = cos( (double)i * fibZoneAngle + fibZoneOffsetAngle ) * fibZoneOffsetRadii;
-        }
-
-        // new empty cross-section
-        std::unique_ptr<RBSFiberedCrossSection> crossSection = std::make_unique<RBSFiberedCrossSection>( number, domain );
-        // hard copy cross-section
-        //FiberedCrossSection *rawPtr = static_cast<FiberedCrossSection *> (this->giveCrossSection());
-        //std::unique_ptr<FiberedCrossSection> crossSection = std::make_unique<FiberedCrossSection>( *rawPtr );
-
-        // if material is provided for the element
-        if ( this->material ) {
-            // use provided element material for the fibers
-            fiberMaterials.resize( numberOfFibers );
-            for ( int &m : fiberMaterials ) {
-                m = this->material;
-            }
-        } else {
-            // use material of current element (alternative way)
-            fiberMaterials.resize( numberOfFibers );
-            auto ip = this->giveDefaultIntegrationRulePtr()->getIntegrationPoint( 0 );
-            int mat = this->giveCrossSection()->giveMaterial( ip )->giveNumber();
-            for ( int &m : fiberMaterials ) {
-                m = mat;
-            }
-        }
-
-        // dummy linear fibers
-        if ( false ) {
-            int numberOfDummyFibers = numberOfFibers;
-            double dummyScale = 0.1;
-            double numberAllFibers  = numberOfFibers + numberOfDummyFibers;
-            fiberMaterials.resizeWithValues( numberAllFibers );
-            fiberThicks.resizeWithValues( numberAllFibers );
-            fiberWidths.resizeWithValues( numberAllFibers );
-            fiberYcoords.resizeWithValues( numberAllFibers );
-            fiberZcoords.resizeWithValues( numberAllFibers );
-            for ( int i = 0; i < numberOfDummyFibers; ++i ) {
-                fiberMaterials[numberOfFibers + i] = 2;
-                fiberThicks[numberOfFibers + i]    = dummyScale * fiberThicks[i];
-                fiberWidths[numberOfFibers + i]    = dummyScale * fiberWidths[i];
-                fiberYcoords[numberOfFibers + i]   = fiberYcoords[i];
-                fiberZcoords[numberOfFibers + i]   = fiberZcoords[i];
-            }
-        }
-
-        crossSection->initializeFrom( number, fiberMaterials, fiberThicks, fiberWidths,
-            numberOfFibers, thick, width, fiberYcoords, fiberZcoords );
-        domain->resizeCrossSectionModels( number );
-        domain->setCrossSection( number, std::move(crossSection) );
-
-    } else {
+    if ( csType != "FiberedCrossSection" ) {
         OOFEM_ERROR( "%s does not support %s, please use fibered section",
             this->giveClassName(), csType.c_str() )
     }
+    */
 
-    return number;
+    // new empty cross-section
+    std::unique_ptr<RBSFiberedCrossSection> crossSection = std::make_unique<RBSFiberedCrossSection>( csNumber, domain );
+    // hard copy cross-section
+    //FiberedCrossSection *rawPtr = static_cast<FiberedCrossSection *> (this->giveCrossSection());
+    //std::unique_ptr<FiberedCrossSection> crossSection = std::make_unique<FiberedCrossSection>( *rawPtr );
+
+    // set material numbers
+    fiberMaterials.resize( numberOfFibers );
+    for ( int &m : fiberMaterials ) {
+        m = materialNumber;
+    }
+
+    // make dummy elastic-linear fibers
+    /*
+    int numberOfDummyFibers = numberOfFibers;
+    int elasticLinearMat    = 2;
+    double dummyScale       = 0.1;
+    double numberAllFibers  = numberOfFibers + numberOfDummyFibers;
+    fiberMaterials.resizeWithValues( numberAllFibers );
+    fiberThicks.resizeWithValues( numberAllFibers );
+    fiberWidths.resizeWithValues( numberAllFibers );
+    fiberYcoords.resizeWithValues( numberAllFibers );
+    fiberZcoords.resizeWithValues( numberAllFibers );
+    for ( int i = 0; i < numberOfDummyFibers; ++i ) {
+        fiberMaterials[numberOfFibers + i] = elasticLinearMat;
+        fiberThicks[numberOfFibers + i]    = dummyScale * fiberThicks[i];
+        fiberWidths[numberOfFibers + i]    = dummyScale * fiberWidths[i];
+        fiberYcoords[numberOfFibers + i]   = fiberYcoords[i];
+        fiberZcoords[numberOfFibers + i]   = fiberZcoords[i];
+    }
+    */
+
+    crossSection->initializeFrom( csNumber, fiberMaterials, fiberThicks, fiberWidths,
+        numberOfFibers, thick, width, fiberYcoords, fiberZcoords );
+    domain->resizeCrossSectionModels( csNumber );
+    domain->setCrossSection( csNumber, std::move(crossSection) );
+
+    return csNumber;
+}
+
+int RBSMTetra::findSpringsBeamMaterial( int nFacet )
+{
+    int matNumber    = 0, sisterMatNumber;
+    int sisterNo     = 1; // if multiple sisters on one facet allowed this becomes an argument
+    IntArray sisters = this->existingSisters[nFacet];
+    bool elementItzSupport, csItzSupport = false;
+
+    if ( sisters.giveSize() != 1 ) {
+        OOFEM_ERROR("Invalid number of sisters on face %d of RB %d",
+            nFacet, this->number);
+    }
+
+    if ( this->material ) {
+        // element material overrides CS material
+        matNumber = this->material;
+    } else {
+        // use CS material (alternative way)
+        auto ip = this->giveDefaultIntegrationRulePtr()->getIntegrationPoint( 0 );
+        matNumber = this->giveCrossSection()->giveMaterial( ip )->giveNumber();
+    }
+
+    if ( RBSMTetra *ane = dynamic_cast<RBSMTetra *>(
+             domain->giveElement( sisters.at( sisterNo ) ) ) ) {
+        if ( ane->material ) {
+            // sister's material can override her cross-section's material
+            sisterMatNumber = ane->material;
+        } else {
+            // use CS material (alternative way)
+            auto ip = ane->giveDefaultIntegrationRulePtr()->getIntegrationPoint( 0 );
+            sisterMatNumber = ane->giveCrossSection()->giveMaterial( ip )->giveNumber();
+        }
+    } else {
+        OOFEM_ERROR( "The sisters element's class of RB %d is not recognized",
+            this->number );
+    }
+
+    if ( sisterMatNumber != matNumber ) {
+        int itzID = 0;
+        // element's ITZ interface overrides CS
+        auto itzInterface = static_cast<ItzInterface *>(
+            this->giveInterface( ItzInterfaceType ) );
+        elementItzSupport = itzInterface == nullptr ? false : true;
+        // if element cannot provide ITZ try CS
+        if ( !elementItzSupport ||
+            !itzInterface->ItzInterface_giveItzMaterialNumber() ) {
+            itzInterface = static_cast<ItzInterface *>(
+                this->giveCrossSection()->giveInterface( ItzInterfaceType ) );
+            csItzSupport = itzInterface == nullptr ? false : true;
+        }
+        if ( !elementItzSupport && !csItzSupport ) {
+            OOFEM_ERROR( "RB element %d and its CS do not support ITZ interface",
+                this->number );
+        } else if (!itzInterface->ItzInterface_giveItzMaterialNumber()) {
+            OOFEM_ERROR( "For RB element %d or its CS no ITZ material provided "
+                         "to link material %d to %d",
+                this->number, sisterMatNumber, matNumber );
+        } else {
+            itzID = itzInterface->ItzInterface_giveItzMaterialNumber();
+        }
+        if ( RBSItz *itz = dynamic_cast<RBSItz *>(
+                 domain->giveMaterial( itzID ) ) ) {
+            // update mat number as ITZ suggests
+            matNumber = itz->findItzMaterial(
+                sisterMatNumber, matNumber );
+        } else {
+            OOFEM_ERROR( "Could not use material %d as ITZ material", itzID );
+        }
+    }
+
+    return matNumber;
 }
 
 // S: todo: update or confirm

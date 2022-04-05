@@ -43,10 +43,11 @@
 #include "spatiallocalizer.h"
 #include "sm/ErrorEstimators/zzerrorestimator.h"
 #include "mmashapefunctprojection.h"
-
+#include "sm/Materials/DiscreteModels/rbsitz.h"
 #include "oofemtxtinputrecord.h"
 
 #define _IFT_RBSMTetra_Name "rbsmtetra"
+#define _IFT_RBSMTetra_itz "itz"
 #define MINDLIN
 
 namespace oofem {
@@ -59,7 +60,7 @@ class RBSBeam3d;
  * Each element has one master node with 6 degree of freedom.
  * @author Saeid Mehrpay
  */
-class RBSMTetra : public Structural3DElement
+class RBSMTetra : public Structural3DElement, public ItzInterface
                 /*,
                   public ZZNodalRecoveryModelInterface,
                   public NodalAveragingRecoveryModelInterface,
@@ -87,8 +88,12 @@ protected:
     int numberOfCornerNodes; // make static constant
     /// global ID of rigid body cell central node
     int centerDofmanager;
+    // Interfacial material
+    //int itzMaterial = 0;
     /// global number of mesh nodes defining corners of the rigid body
     IntArray geoNodes;
+    /// map facet number to array of existing sisters
+    std::map<int, IntArray> existingSisters;
     /// global number of the springs beam elements
     std::vector<IntArray> springsBeams;
     /// facets' vertex indices of rigid body
@@ -243,7 +248,8 @@ public:
      * @return assigned number to the new cross-section
      */
     int makeSpringsBeamCrossSection_3TriaDissect( int nFacet );
-    int makeSpringsBeamCrossSection_CircularDist( int nFacet, int numberOfFibers );
+    int makeSpringsBeamCrossSection_CircularDist( int nFacet, int numberOfFibers, int materialNumber );
+    int findSpringsBeamMaterial( int nFacet );
 
     void giveCharacteristicMatrix( FloatMatrix &answer, CharType type, TimeStep *tStep ) override;
     void giveCharacteristicVector( FloatArray &answer, CharType type, ValueModeType mode, TimeStep *tStep ) override;
