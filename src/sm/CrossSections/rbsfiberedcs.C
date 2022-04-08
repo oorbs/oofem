@@ -162,7 +162,7 @@ FloatArrayF<6> RBSFiberedCrossSection::giveRealStress_3d( const FloatArrayF<6> &
 
         FloatArray fullFiberStrain = strain;
         FloatArray reducedFiberStrain;
-        FloatArray fullFiberStress;
+        //FloatArray fullFiberStress;
         //FloatArray reducedFiberStress;
         interface->FiberedCrossSectionInterface_computeStrainVectorInFiber( reducedFiberStrain, strain, fiberGp, tStep);
         for ( int j = 1; j <= maskStrainControl.giveSize(); ++j ) {
@@ -170,7 +170,7 @@ FloatArrayF<6> RBSFiberedCrossSection::giveRealStress_3d( const FloatArrayF<6> &
         }
 
         //reducedFiberStress = fiberMat->giveRealStressVector_Fiber( reducedFiberStrain, fiberGp, tStep);
-        fullFiberStress = fiberMat->giveRealStressVector_3d( fullFiberStrain, fiberGp, tStep );
+        auto fullFiberStress = fiberMat->giveRealStressVector_3d( fullFiberStrain, fiberGp, tStep );
 
         answer.at(1) += fullFiberStress.at(1) * fiberArea;
         answer.at(2) += fullFiberStress.at(2) * fiberArea;

@@ -31,8 +31,8 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Woverloaded-virtual"
+#pragma clang diagnostic push                           //1 override clang warning
+#pragma clang diagnostic ignored "-Woverloaded-virtual" //2 *
 #include "rbsconcrete1.h"
 #include "gausspoint.h"
 #include "floatmatrix.h"
@@ -41,7 +41,7 @@
 #include "classfactory.h"
 #include "sm/Elements/structuralelement.h"
 #include "mathfem.h"
-#pragma clang diagnostic pop
+#pragma clang diagnostic pop                            //3 *
 
 namespace oofem {
 #define ZERO 1.E-6
@@ -175,7 +175,10 @@ MaterialStatus *RBSConcrete1::CreateStatus(GaussPoint *gp) const
 
 FloatArrayF<6> RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussPoint *gp, TimeStep *tStep ) const
 {
-    auto status = static_cast<RBSConcrete1Status *>( this->giveStatus( gp ) );
+    //auto status = static_cast<RBSConcrete1Status *>( this->giveStatus( gp ) );
+    RBSConcrete1Status *status;
+    //#pragma omp critical ( gp_status )
+        status = static_cast<RBSConcrete1Status *>( this->giveStatus( gp ) );
 
     // subtract stress thermal expansion
     auto thermalStrain = this->computeStressIndependentStrainVector_3d( gp, tStep, VM_Total );
@@ -482,7 +485,9 @@ FloatArrayF<6> RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &tota
 // (v-2.5) possibly not needed, delete
 FloatArrayF<6> RBSConcrete1::giveRealStressVector_3dBeamSubSoil( const FloatArrayF<6> &reducedStrain, GaussPoint *gp, TimeStep *tStep ) const
 {
-    auto status = static_cast< StructuralMaterialStatus * >( this->giveStatus(gp) );
+    StructuralMaterialStatus *status;
+    //#pragma omp critical ( gp_status )
+        status = static_cast<StructuralMaterialStatus *>( this->giveStatus( gp ) );
 
     FloatArray vE, vS;
     FloatMatrix tangent, reducedTangent;
@@ -498,8 +503,10 @@ FloatArrayF<6> RBSConcrete1::giveRealStressVector_3dBeamSubSoil( const FloatArra
 FloatArray RBSConcrete1::giveRealStressVector_StressControl(
     const FloatArray &reducedStrain, const IntArray &strainControl, GaussPoint *gp, TimeStep *tStep ) const
 {
-#ifdef DONT_ELIMINATE_CONFINED_STRESS_CONTROL
-    auto status = static_cast< StructuralMaterialStatus * >( this->giveStatus(gp) );
+#ifdef DONT_ELIMINATE_CONFINED_STRESS_CONTROL //StructuralMaterialStatus *status
+    StructuralMaterialStatus *status;
+    //#pragma omp critical ( gp_status )
+        status = static_cast<StructuralMaterialStatus *>( this->giveStatus( gp ) );
 
     IntArray stressControl;
     FloatArray vE, increment_vE, vS;

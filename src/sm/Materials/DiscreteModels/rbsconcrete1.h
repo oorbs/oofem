@@ -50,8 +50,8 @@ namespace oofem {
 class Domain;
 
 /**
- * This class implements a isotropic plastic linear material (J2 plasticity condition is used).
- * @author Jim Brozoulis
+ * This class implements a nonlinear concrete-like material for RBSM element
+ * @author Saeid Mehrpay
  */
 class RBSConcrete1 : public StructuralMaterial
 {

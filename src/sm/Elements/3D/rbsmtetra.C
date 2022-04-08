@@ -177,6 +177,8 @@ void RBSMTetra ::updateLocalNumbering( EntityRenumberingFunctor &f )
 void RBSMTetra::giveInternalForcesVector(FloatArray &answer,
     TimeStep *tStep, int useUpdatedGpRecord)
 {
+// for calculating stresses in the spring beams (cancelled due to performance cost)
+#if 0
     // calculate the 3D stress on each facet //todo: make it a separated sub
     int numberOfFacets = 4;
     FloatArray bsStressVector;
@@ -219,7 +221,7 @@ void RBSMTetra::giveInternalForcesVector(FloatArray &answer,
                 this->giveGlobalNumber(), c );
         }
     }
-
+#endif
     // rigid body does not have InternalForcesVector
     answer.resize( 0 );
     return;
