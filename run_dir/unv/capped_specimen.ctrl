@@ -1,6 +1,7 @@
 capped_specimen.out
 A specimen between two trapezoid caps
-StaticStructural nsteps 10 nmodules 0
+StaticStructural nsteps 10 nmodules 1
+vtkxml tstep_all domain_all vars 7 1 2 4 5 7 8 12 stype 0
 #
 domain 3d
 OutputManager tstep_all dofman_all element_all
@@ -25,14 +26,14 @@ IsoLE 2 d 1. E 200.e3 n 0.3  tAlpha 1.2e-5
 BoundaryCondition 1 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0. -1. 0. 0. 0. 0.  set 4
 BoundaryCondition 2 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0. 0. 0. 0. 0. 0.  set 5
 # < Loade-Time Function >
-PiecewiseLinFunction 1 nPoints 2 t 2 0. 10. f(t) 2 0
+PiecewiseLinFunction 1 nPoints 2 t 2 0. 10. f(t) 2 0. 1.
 #
 Set 1 elements
 Set 2 elements
 Set 3 elements
 Set 4 nodes
 Set 5 nodes
-#
+
 group Specimen
 elemprop set 1
 etype[91] TrPlaneStress2d
