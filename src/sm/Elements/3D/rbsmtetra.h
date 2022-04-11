@@ -78,6 +78,12 @@ public:
 protected:
     static FEI3dTetLin interpolation;
 
+    // Added to this class to avoid domain modification todo: actually belong to domain
+    /// missing domain class properties as a workaround to avoid modifying domain class
+    static int domain_nDofman, domain_nElements, domain_buffer;
+    /// largest global number assigned to an existing DOF manager
+    static int domain_maxDofGlNum;
+
     /// map geometry (mesh) node number to cloned nodes local number
     static std::map<int, std::set<int>> clonesOfGeoNode;
     /// map geometry (mesh) node number to RBSM element local number
@@ -215,19 +221,40 @@ public:
      * @returns local number which is based on an arithmetic
      * progression starting from 1 and is assigned automatically.
      */
-    int makeDofmanager( InputRecord &dummyIr );
+    int makeDofmanager( InputRecord &dummyIr,
+                        const bool domainDofListResize = true, const int resizeExtraRoom = 0 );
     /**
      * Makes a DOF manager and returns assigned local number
      * @param globalNumber represents the number inside an input file.
+     * @param Number represents the number of DOF manager.
+     * @param domainDofListResize increase size of DOF managers list by 1 (default true).
+     * @param resizeExtraRoom extra increment of DOF list (default 0).
      * @returns local number which is based on an arithmetic
      * progression starting from 1 and is assigned automatically.
      */
-    int makeDofmanager( InputRecord &dummyIr, int globalNumber );
+    int makeDofmanager( InputRecord &dummyIr, const int globalNumber, const int number,
+                        const bool domainDofListResize = true, const int resizeExtraRoom = 0 );
     /**
-     * @returns next available global number for a new DOF manager,
+     * @param nDofmanPlus increase number of DOF managers by (default 1).
+     * @param skipNumber skip available global DOF managers by (default 0).
+     * @param number stores next available DOF number plus skip number.
+     * @returns next available global number plus skip number for a new DOF manager,
      * global number represents the number given inside an input file.
      */
-    int nextDofmanagerGlobalNumber();
+    int nextDofmanagerGlobalNumber( int &number, int nDofmanPlus = 1, int skipNumber = 0 );
+    /**
+     * finds maximum global number used for a new Dof manager
+     * @returns maximum global number of all existing DOFs,
+     * global number represents the number given inside an input file.
+     */
+    int findMaxDofmanagerGlobalNumber();
+    /**
+     * checks global number can be used for a new DOF manager,
+     * all DOF managers must be initialized
+     * @returns true for a valid global number for a new DOF manager,
+     * global number represents the number given inside an input file.
+     */
+    bool isValidDofmanagerGlobalNumber( int globalNum );
     /**
      * @returns next available global number for a new element,
      * global number represents the number given inside an input file.
@@ -257,7 +284,13 @@ public:
     //bool isActivated( TimeStep *tStep ) override;
 
 protected:
-    void rbsmDummyIr( InputRecord &irIn, std::vector<OOFEMTXTInputRecord> &irOut, int master );
+    /**
+     * @param irIn input record to obtain node coordinates.
+     * @param irOut generated dummy input record for making RBSM nodes including rigid arm nodes.
+     * @param masterGlNum global number of master node to tie rigid arms too.
+     * global number represents the number given inside an input file.
+     */
+    void rbsmDummyIr( InputRecord &irIn, std::vector<OOFEMTXTInputRecord> &irOut, int masterGlNum );
     /// set the geometry nodes numbers from input file
     void setGeoNodesFromIr( InputRecord &ir );
     /// update the geometry nodes to clone nodes map

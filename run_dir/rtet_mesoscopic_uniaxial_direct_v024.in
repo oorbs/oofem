@@ -1,7 +1,7 @@
 rtet_mesoscopic_uniaxial_direct_v024.out
 Mesoscopic Compression Test (w/o plates)
-StaticStructural nsteps 50 lstype 0 smtype 0 nmodules 1 profileopt 1 manrmsteps 400 maxiter 800 maxinc .1
-#StaticStructural nsteps 50 lstype 6 smtype 2 nmodules 1 profileopt 1 manrmsteps 400 maxiter 800 maxinc .1
+#StaticStructural nsteps 50 lstype 0 smtype 0 nmodules 1 profileopt 1 manrmsteps 400 maxiter 800 maxinc .1
+StaticStructural nsteps 50 lstype 6 smtype 2 nmodules 1 profileopt 1 manrmsteps 400 maxiter 800 maxinc .1
 # strs:1 prinStrs:2 Strn:4 prinStrn:5 Beam-F&M:7 beam-strn&crv:8 disp:12 | stype:0-2
 vtkxml tstep_all domain_all vars 1 12 stype 0
 #vtkxml tstep_all domain_all cellvars 2 7 8

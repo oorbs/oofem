@@ -66,6 +66,9 @@ FEI3dTetLin RBSMTetra::interpolation;
 std::map<int, std::set<int>> RBSMTetra::clonesOfGeoNode;
 std::map<int, std::set<int>> RBSMTetra::cellElementsOfGeoNode;
 std::map<std::vector<int>, std::set<int>> RBSMTetra::mapFacetElement;
+int RBSMTetra::domain_nDofman = 0, RBSMTetra::domain_maxDofGlNum = 0;
+int RBSMTetra::domain_nElements = 0;
+int RBSMTetra::domain_buffer = 100;
 
 // S: todo: update or confirm
 RBSMTetra::RBSMTetra( int n, Domain *aDomain ) :
@@ -94,6 +97,16 @@ void RBSMTetra::initializeFrom( InputRecord &ir )
     // currently we first initialize the element then clone
     // the corner nodes.
     Structural3DElement::initializeFrom( ir );
+
+    if ( !RBSMTetra::domain_nDofman ) {
+        RBSMTetra::domain_nDofman = domain->giveNumberOfDofManagers();
+    }
+    if ( !RBSMTetra::domain_nElements ) {
+        RBSMTetra::domain_nElements = domain->giveNumberOfElements();
+    }
+    if ( !RBSMTetra::domain_maxDofGlNum ) {
+        RBSMTetra::domain_maxDofGlNum = this->findMaxDofmanagerGlobalNumber();
+    }
 
     RBSMTetra::setGeoNodesFromIr( ir );
     RBSMTetra::makeDofmanagers( ir );
@@ -370,23 +383,24 @@ void RBSMTetra::setCrossSection( int csIndx )
 void RBSMTetra::makeDofmanagers( InputRecord &ir )
 // Makes central and cloned corner nodes for the rigid body
 {
-    int nextID;
+    int masterDofGlNum, masterDofNum;
     std::vector<OOFEMTXTInputRecord> rbsmInputRecords;
 
     // find next available DOF manager's global number
-    nextID = RBSMTetra::nextDofmanagerGlobalNumber();
+    masterDofGlNum = RBSMTetra::nextDofmanagerGlobalNumber( masterDofNum );
     // create fake input records to make RBSM DOF managers
-    RBSMTetra::rbsmDummyIr( ir, rbsmInputRecords, nextID );
+    RBSMTetra::rbsmDummyIr( ir, rbsmInputRecords, masterDofGlNum );
 
     // create central DOF manager (master)
     this->centerDofmanager =
-        RBSMTetra::makeDofmanager( rbsmInputRecords.at( 0 ), nextID );
+        RBSMTetra::makeDofmanager( rbsmInputRecords.at( 0 ), masterDofGlNum, masterDofNum,
+            true, numberOfCornerNodes); // resize DOF list with extra room for corner nodes
 
     // create cloned corner nodes (rigid arm)
-    // (make sure that the dofManArray is initialized)
     for ( int i = 1; i <= numberOfCornerNodes; ++i ) {
         this->dofManArray.at( i ) =
-            RBSMTetra::makeDofmanager( rbsmInputRecords.at( i ) );
+            RBSMTetra::makeDofmanager( rbsmInputRecords.at( i ),
+                false ); // don't resize DOF list already resized
     }
 }
 
@@ -475,40 +489,38 @@ void RBSMTetra::updateCellElementsOfGeoNode()
     }
 }
 
-int RBSMTetra::makeDofmanager( InputRecord &dummyIr )
+int RBSMTetra::makeDofmanager( InputRecord &dummyIr,
+                                    const bool domainDofListResize, const int resizeExtraRoom )
 // Makes central DOF manager and returns given number
 {
-    int globalNumber;
-    globalNumber = RBSMTetra::nextDofmanagerGlobalNumber();
-
-    return RBSMTetra::makeDofmanager( dummyIr, globalNumber );
+    // next available DOF manager's global number
+    int number;
+    int globalNumber = RBSMTetra::nextDofmanagerGlobalNumber( number );
+    return RBSMTetra::makeDofmanager( dummyIr, globalNumber, number,
+                                    domainDofListResize, resizeExtraRoom );
 }
 
-int RBSMTetra::makeDofmanager( InputRecord &dummyIr, int globalNumber )
+int RBSMTetra::makeDofmanager( InputRecord &dummyIr, const int globalNumber, const int number,
+                                    const bool domainDofListResize, const int resizeExtraRoom )
 // Makes central DOF manager and returns given number
 {
-    int number, nDofman = 0;
     std::string nodeType;
     Domain *d = this->giveDomain();
     std::vector<OOFEMTXTInputRecord> rbsmInputRecords;
 
-    nDofman = d->dofManagerList.size();
-    if ( nDofman <= 0 ) {
-        OOFEM_ERROR( "Domain returned invalid DOF managers count: %d\n", globalNumber );
-    }
-
-    IR_GIVE_RECORD_KEYWORD_FIELD( dummyIr, nodeType, number );
+    int unused;
+    IR_GIVE_RECORD_KEYWORD_FIELD( dummyIr, nodeType, unused )
     // number for central DOF manager of the rigid body
-    number = nDofman + 1;
 
     std::unique_ptr<DofManager> newDman( classFactory.createDofManager( nodeType.c_str(), number, d ) );
     if ( !newDman ) {
-        OOFEM_ERROR( "Couldn't create node of type: %s\n", _IFT_Node_Name );
+        OOFEM_ERROR( "Couldn't create node of type: %s\n", _IFT_Node_Name )
     }
 
     newDman->initializeFrom( dummyIr );
 
-    // make sure that global number is unique
+    // global number is already checked
+    #if 0
     auto hasSameNum{
         [&globalNumber]( std::unique_ptr<oofem::DofManager> &dman ) { return dman->giveGlobalNumber() == globalNumber; }
     };
@@ -517,12 +529,29 @@ int RBSMTetra::makeDofmanager( InputRecord &dummyIr, int globalNumber )
         // the global ID already exists
         OOFEM_ERROR( "Failed to create DOF manager; the global number '%d' is already taken", globalNumber );
     }
-
+    #endif
     newDman->setGlobalNumber( globalNumber );
-
-    d->resizeDofManagers( nDofman + 1 );
-
+    if ( domainDofListResize ) {
+        d->resizeDofManagers( d->dofManagerList.size() + 1 + resizeExtraRoom );
+    } else {
+        if ( resizeExtraRoom ) {
+            OOFEM_ERROR("Resize skip number is provided despite false resize argument.")
+        }
+    }
     d->setDofManager( number, std::move( newDman ) );
+
+    /*
+    if ( updateDofStats ) {
+        if ( RBSMTetra::domain_maxDofGlNum < globalNumber ) {
+            #ifdef _OPENMP
+            #pragma omp critical
+            #endif
+                RBSMTetra::domain_maxDofGlNum = std::max( globalNumber, RBSMTetra::domain_maxDofGlNum );
+        }
+        RBSMTetra::domain_nDofman++;
+    }
+    */
+
 
     /* OPTION 1
      * return the local number so **updateClonesOfGeoNode()** does not need to convert it
@@ -534,39 +563,81 @@ int RBSMTetra::makeDofmanager( InputRecord &dummyIr, int globalNumber )
     return globalNumber;
 }
 
-int RBSMTetra::nextDofmanagerGlobalNumber()
-// finds the next available DOF manager's global number
+int RBSMTetra::nextDofmanagerGlobalNumber( int &number, int nDofmanPlus, int skipNumber )
+// finds the next available DOF manager's global number and increase domain_maxDofGlNum
 {
-    int num, count, nDofman = 0;
+    int globalNumber;
+    #ifdef _OPENMP
+    #pragma omp critical
+    #endif
+    {
+        globalNumber = skipNumber + RBSMTetra::domain_maxDofGlNum + 1;
+        number       = skipNumber + RBSMTetra::domain_nDofman     + 1;
+
+        // update domain_*
+        if ( RBSMTetra::domain_maxDofGlNum < globalNumber ) {
+            RBSMTetra::domain_maxDofGlNum = std::max( globalNumber, RBSMTetra::domain_maxDofGlNum );
+        }
+        RBSMTetra::domain_nDofman += nDofmanPlus;
+    }
+
+    #ifdef CONSERVATIVE
+        if ( !isValidDofmanagerGlobalNumber( globalNumber ) ) OOFEM_ERROR( "Max DOF global number was not up-to-date" )
+            /*
+            int count = 0;
+            while ( !isValidDofmanagerGlobalNumber( num ) ) {
+                // try to resolve duplicated number
+                num++;
+                count++;
+                if ( count > domain_nDofman ) {
+                    // prevent infinite loop
+                    OOFEM_ERROR( "Failed to find a unique node id for 'RBSM Tetra element'" );
+                }
+            }
+            */
+    #endif
+
+    return globalNumber;
+}
+
+// todo: make a thread safe version that can skip uninitialized DOFs
+bool RBSMTetra::isValidDofmanagerGlobalNumber( int globalNum )
+{
     Domain *d = this->giveDomain();
 
-    nDofman = d->dofManagerList.size();
-    if ( nDofman <= 0 ) {
-        OOFEM_ERROR( "Domain returned invalid DOF manager count: %d\n", nDofman );
-    }
-
-    // first try for the next DOF manager's global number
-    num = nDofman + 1;
-
     // make sure that global number is unique
-    count = 0;
     auto hasSameNum{
-        //[num]( std :: unique_ptr< DofManager > dman ) { return dman->giveGlobalNumber() == num; }
-        [&num]( std::unique_ptr<oofem::DofManager> &dman ) { return dman->giveGlobalNumber() == num; }
+        [&globalNum]( std::unique_ptr<oofem::DofManager> &dman ) { return dman->giveGlobalNumber() == globalNum; }
     };
     auto it = std::find_if( d->dofManagerList.begin(), d->dofManagerList.end(), hasSameNum );
-    while ( it != d->dofManagerList.end() ) {
-        // try to resolve duplicated number
-        num++;
-        count++;
-        it = std::find_if( d->dofManagerList.begin(), d->dofManagerList.end(), hasSameNum );
-        if ( count > nDofman ) {
-            // prevent infinite loop
-            OOFEM_ERROR( "Failed to find a unique node id for 'RBSM Tetra element'" );
-        }
+    if ( it != d->dofManagerList.end() ) {
+        // duplicated number
+        return false;
     }
 
-    return num;
+    return true;
+}
+
+// finds maximum of global numbers used for Dof managers
+int RBSMTetra::findMaxDofmanagerGlobalNumber()
+{
+    Domain *d = this->giveDomain();
+    int num;
+    int maxNum = d->dofManagerList[RBSMTetra::domain_nDofman - 1]->giveGlobalNumber();
+    #ifdef _OPENMP
+    #pragma omp parallel for default( none ) reduction( max : maxNum ) \
+                                    shared( d, oofem_logger ) private(num)
+    #endif
+    for ( int i = RBSMTetra::domain_nDofman; i > 0; --i ) {
+        num = d->dofManagerList[i - 1]->giveGlobalNumber();
+        if ( maxNum < num ) {
+            maxNum = num;
+        }else if ( maxNum == num ){
+            // just an extra check
+            OOFEM_ERROR( "Duplicate of DOF global number %d was found", maxNum );
+        }
+    }
+    return maxNum;
 }
 
 int RBSMTetra::nextElementGlobalNumber( int baseNumber )
@@ -630,7 +701,7 @@ std::vector<FloatArray> RBSMTetra::coordsFromIr( InputRecord &ir )
 
 
 void RBSMTetra::rbsmDummyIr(
-    InputRecord &irIn, std::vector<OOFEMTXTInputRecord> &irOut, int master )
+    InputRecord &irIn, std::vector<OOFEMTXTInputRecord> &irOut, int masterGlNum )
 // Obtains the coordinates of rigid body cell
 {
     char buff[256];
@@ -664,7 +735,7 @@ void RBSMTetra::rbsmDummyIr(
             nodeCoords.at( i ).at( 1 ),
             nodeCoords.at( i ).at( 2 ),
             nodeCoords.at( i ).at( 3 ),
-            _IFT_RigidArmNode_master, master );
+            _IFT_RigidArmNode_master, masterGlNum );
         irString = buff;
         // rigid arm dummy input records
         irOut.at( i ) = OOFEMTXTInputRecord( 0, irString );
@@ -853,9 +924,9 @@ int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
 
     element->setGlobalNumber( globalNumber );
 
-    d->resizeElements( nElements + 1 );
+    //d->resizeElements( nElements + 1 );               //_****************************++++++++++++++++++++++
 
-    d->setElement( number, std::move( element ) );
+    //d->setElement( number, std::move( element ) );    //_****************************++++++++++++++++++++++
 
     return number;
 }
