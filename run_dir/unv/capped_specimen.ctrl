@@ -1,6 +1,7 @@
 capped_specimen.out
 A specimen between two trapezoid caps
-StaticStructural nsteps 10 nmodules 0
+StaticStructural nsteps 10 nmodules 1
+vtkxml tstep_all domain_all vars 7 1 2 4 5 7 8 12 stype 0
 #
 domain 3d
 OutputManager tstep_all dofman_all element_all
