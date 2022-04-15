@@ -1,12 +1,12 @@
 rtet_mesoscopic_uniaxial_direct_v024.out
 Mesoscopic Compression Test (w/o plates)
+StaticStructural nsteps 50 lstype 6 smtype 2 nmodules 1 profileopt 1 manrmsteps 0 maxiter 1999 maxinc .1
 #StaticStructural nsteps 50 lstype 0 smtype 0 nmodules 1 profileopt 1 manrmsteps 400 maxiter 800 maxinc .1
-StaticStructural nsteps 50 lstype 6 smtype 2 nmodules 1 profileopt 1 manrmsteps 400 maxiter 800 maxinc .1
 # strs:1 prinStrs:2 Strn:4 prinStrn:5 Beam-F&M:7 beam-strn&crv:8 disp:12 | stype:0-2
 vtkxml tstep_all domain_all vars 1 12 stype 0
 #vtkxml tstep_all domain_all cellvars 2 7 8
 domain 3d
-OutputManager tstep_step 10 dofman_all element_all
+OutputManager tstep_all dofman_all element_all
 #OutputManager tstep_all dofman_all element_all
 ndofman 3846 nelem 20104 ncrosssect 2 nmat 4 nbc 2 nic 0 nltf 1 nset 4 nxfemman 0
 node 1     coords 3  0        0        0       
@@ -23981,7 +23981,7 @@ itz 4 primaryMaterials 1  1   secondaryMaterials 1  2   interfaceMaterials 1  3
 #IsoLE 2 d 1. E 200.e3 n 0.3  tAlpha 1.2e-5
 #
 # < Displacement-control BC >
-BoundaryCondition 1 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0. -1.  0.  0.  0.  0.   set 3
+BoundaryCondition 1 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0. -.5  0.  0.  0.  0.   set 3
 BoundaryCondition 2 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0.  0.  0.  0.  0.  0.   set 4
 # < Loade-Time Function >
 PiecewiseLinFunction 1   nPoints 2   t 2  0. 50.   f(t) 2  0. 1.

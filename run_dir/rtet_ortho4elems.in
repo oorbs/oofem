@@ -1,6 +1,6 @@
 rtet_ortho4elems.out
 Multiple RBSM element test
-StaticStructural nsteps 10 nmodules 1
+StaticStructural nsteps 10 nmodules 1 lstype 6 smtype 2
 #StaticStructural nsteps 150 nmodules 1 profileopt 1 manrmsteps 200 maxiter 300 maxinc .1
 # strs:1 prinStrs:2 Strn:4 prinStrn:5 Beam-F&M:7 beam-strn&crv:8 disp:12 | stype:0-2
 # Module 0: node data
