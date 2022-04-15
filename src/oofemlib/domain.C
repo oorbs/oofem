@@ -577,6 +577,8 @@ Domain :: instanciateYourself(DataReader &dr)
     // read elements
     elementList.clear();
     elementList.resize(nelem);
+    Timer timer;
+    timer.startTimer();
     for ( int i = 1; i <= nelem; i++ ) {
         auto &ir = dr.giveInputRecord(DataReader :: IR_elemRec, i);
         // read type of element
@@ -593,6 +595,8 @@ Domain :: instanciateYourself(DataReader &dr)
 
         ir.finish();
     }
+    timer.stopTimer();
+    OOFEM_LOG_INFO( "\nDomain info: user time consumed by elements initialization: %.2fs\n", timer.getUtime() );
 
     BuildElementPlaceInArrayMap();
 
