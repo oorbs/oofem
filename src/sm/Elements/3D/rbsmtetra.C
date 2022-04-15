@@ -69,6 +69,7 @@ std::map<std::vector<int>, std::set<int>> RBSMTetra::mapFacetElement;
 int RBSMTetra::domain_nDofman = 0, RBSMTetra::domain_maxDofGlNum = 0;
 int RBSMTetra::domain_nElements = 0;
 int RBSMTetra::domain_buffer = 100;
+int RBSMTetra::prepProgress     = -1;
 
 // S: todo: update or confirm
 RBSMTetra::RBSMTetra( int n, Domain *aDomain ) :
@@ -106,6 +107,12 @@ void RBSMTetra::initializeFrom( InputRecord &ir )
     }
     if ( !RBSMTetra::domain_maxDofGlNum ) {
         RBSMTetra::domain_maxDofGlNum = this->findMaxDofmanagerGlobalNumber();
+    }
+
+    int progress = ( this->number * 100. / RBSMTetra::domain_nElements );
+    if (progress % 10 == 0 && progress > RBSMTetra::prepProgress) {
+        prepProgress = progress;
+        OOFEM_LOG_INFO( "\nRBSM info: Preprocessing input file, current progress: %d%%", progress );
     }
 
     RBSMTetra::setGeoNodesFromIr( ir );
@@ -285,8 +292,8 @@ FloatArray RBSMTetra::giveConfiningStress( int nFacet, TimeStep *tStep )
         //todo: speedup! no need to ask for lcs everytime.
         //todo: critical! Dir (x direction) should be prependicular to facet.
         facetSB->giveLocalCoordinateSystem( lcs );
-        for ( int i = 1; i <= 3; ++i ) {
-            siblingDir.at(i) = lcs.at( 1, i );
+        for ( int n = 1; n <= 3; ++n ) {
+            siblingDir.at(n) = lcs.at( 1, n );
         }
         // Calculating weight of contribution
         siblingDir.beVectorProductOf( siblingDir, targetDir );
@@ -623,12 +630,13 @@ int RBSMTetra::findMaxDofmanagerGlobalNumber()
 {
     Domain *d = this->giveDomain();
     int num;
-    int maxNum = d->dofManagerList[RBSMTetra::domain_nDofman - 1]->giveGlobalNumber();
+    int maxNum = 0;
+    int nDofman = RBSMTetra::domain_nDofman;
     #ifdef _OPENMP
     #pragma omp parallel for default( none ) reduction( max : maxNum ) \
-                                    shared( d, oofem_logger ) private(num)
+                            shared( d, nDofman, oofem_logger, stderr ) private( num )
     #endif
-    for ( int i = RBSMTetra::domain_nDofman; i > 0; --i ) {
+    for ( int i = nDofman; i > 0; --i ) {
         num = d->dofManagerList[i - 1]->giveGlobalNumber();
         if ( maxNum < num ) {
             maxNum = num;
@@ -910,7 +918,8 @@ int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
     }
 
 
-    // make sure that global number is unique
+    // global number is already check to be unique
+    #if 0
     auto hasSameNum{
         [&globalNumber]( std::unique_ptr<oofem::Element> &elem ) { return elem ? elem->giveGlobalNumber() == globalNumber : false; }
     };
@@ -921,12 +930,13 @@ int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
                      "the global number '%d' is already taken",
             globalNumber );
     }
+    #endif
 
     element->setGlobalNumber( globalNumber );
 
-    //d->resizeElements( nElements + 1 );               //_****************************++++++++++++++++++++++
-
-    //d->setElement( number, std::move( element ) );    //_****************************++++++++++++++++++++++
+    // todo: speedup: Element global numbers could be evaluated from a max number similar to DOF Managers
+    d->resizeElements( nElements + 1 );
+    d->setElement( number, std::move( element ) );
 
     return number;
 }

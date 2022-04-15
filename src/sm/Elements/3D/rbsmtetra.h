@@ -84,6 +84,9 @@ protected:
     /// largest global number assigned to an existing DOF manager
     static int domain_maxDofGlNum;
 
+    /// last reported preprocessing progress
+    static int prepProgress;
+
     /// map geometry (mesh) node number to cloned nodes local number
     static std::map<int, std::set<int>> clonesOfGeoNode;
     /// map geometry (mesh) node number to RBSM element local number
