@@ -17,6 +17,7 @@ nmat
 nxfemman
 Öhman
 omega_crit
+oneapi
 oofem
 Patzak
 rbsm
@@ -70,6 +71,7 @@ set
 stype
 thick
 tstep_all
+tstep_step
 width
 d
 E

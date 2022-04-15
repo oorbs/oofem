@@ -514,7 +514,7 @@ FloatArray RBSConcrete1::giveRealStressVector_StressControl(
     // Stores reduced strain vector
     FloatArray answer;
 
-    stressControl.resize(6 - strainControl.giveSize() );
+    stressControl.resize( 6 - strainControl.giveSize() );
     for ( int i = 1, j = 1; i <= 6; i++ ) {
         if ( !strainControl.contains(i) ) {
             stressControl.at(j++) = i;
