@@ -122,7 +122,7 @@ class CTRLParser:
                     lineSplit = line.split()
                     if len(lineSplit) == 0:
                         break;
-                    #print "Line: ", line,
+                    #print("Line: ", line)
                     if lineSplit[0].lower() == 'nodeprop':
                         if (lineSplit[-2].lower()=='set'):
                             for igroup in groups:
@@ -135,16 +135,23 @@ class CTRLParser:
                                         __gr=self.getNodeGroup(FEM, igroup)
                                         __gr.oofem_properties=' '.join(lineSplit[1:-2])
                                         str = "\t\tGroup of nodes \"%s\" has properties: %s" % (igroup, __gr.oofem_properties)
+                                        if igroup.startswith('OOFEM-Hanging'):
+                                            __gr.oofem_hangingNode = True
+                                            str += ' and are HANGING nodes'
                                         print (str)
                                 else:
                                     str = "WARNING: Group of nodes \"%s\" does not exist" % igroup
                                     print (str)
                         else:
                             for igroup in groups:
+                                #print("igroup", igroup)
                                 __gr=self.getNodeGroup(FEM,igroup)
                                 if __gr:
                                     __gr.oofem_properties=' '.join(lineSplit[1:])
                                     str = "\t\tGroup of nodes \"%s\" has properties: %s" % (igroup, __gr.oofem_properties)
+                                    if igroup.startswith('OOFEM-Hanging'):
+                                        __gr.oofem_hangingNode = True
+                                        str += ' and are HANGING nodes'
                                     print (str)
                                 else:
                                     str = "WARNING: Group of nodes \"%s\" does not exist" % igroup
@@ -297,6 +304,7 @@ class CTRLParser:
         #init group properties on UNV data
         for igroup in FEM.nodesets:#defined in ctrl file
             igroup.oofem_properties=""
+            igroup.oofem_hangingNode = False
             igroup.oofem_sets=[]
         for igroup in FEM.elemsets:#defined in ctrl file
             igroup.oofem_properties=""

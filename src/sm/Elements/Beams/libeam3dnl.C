@@ -207,7 +207,7 @@ LIBeam3dNL :: giveInternalForcesVector(FloatArray &answer, TimeStep *tStep, int 
     this->updateTempTriad(tStep);
 
     if ( useUpdatedGpRecord == 1 ) {
-        stress = static_cast< StructuralMaterialStatus * >( gp->giveMaterialStatus() )->giveStrainVector();
+        stress = static_cast< StructuralMaterialStatus * >( gp->giveMaterialStatus() )->giveStressVector();
     } else {
         this->computeStrainVector(strain, gp, tStep);
         this->computeStressVector(stress, strain, gp, tStep);
@@ -371,6 +371,7 @@ LIBeam3dNL :: initializeFrom(InputRecord &ir)
     FloatMatrix lcs;
     this->giveLocalCoordinateSystem(lcs);
     this->tc.beTranspositionOf(lcs);
+    this->nlGeometry = 0; // element always nonlinear, this is to force ouput in strains and stresses in GP (see structuralms.C)
 }
 
 
@@ -407,12 +408,13 @@ LIBeam3dNL :: computeLumpedMassMatrix(FloatMatrix &answer, TimeStep *tStep)
     answer.at(1, 1) = answer.at(2, 2) = answer.at(3, 3) = halfMass;
     answer.at(7, 7) = answer.at(8, 8) = answer.at(9, 9) = halfMass;
 
-    double Ik, Iy, Iz;
-    Ik   = this->giveCrossSection()->give(CS_TorsionMomentX, gp);
+    double Irr, Iy, Iz;
     Iy   = this->giveCrossSection()->give(CS_InertiaMomentY, gp);
     Iz   = this->giveCrossSection()->give(CS_InertiaMomentZ, gp);
+    Irr  = Iy+Iz;
+
     halfMass   = density * this->computeLength() / 2.;
-    answer.at(4, 4) = answer.at(10, 10) = Ik * halfMass;
+    answer.at(4, 4) = answer.at(10, 10) = Irr * halfMass;
     answer.at(5, 5) = answer.at(11, 11) = Iy * halfMass;
     answer.at(6, 6) = answer.at(12, 12) = Iz * halfMass;
 }

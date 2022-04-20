@@ -274,7 +274,7 @@ public:
 
     void updateBeforeNonlocAverage(const FloatArray &strainVector, GaussPoint *gp, TimeStep *tStep) const override;
 
-    double computeWeightFunction(const FloatArray &src, const FloatArray &coord) const override;
+  double computeWeightFunction(const double cl, const FloatArray &src, const FloatArray &coord) const override;
 
     int hasBoundedSupport() const override { return 1; }
     /**
@@ -309,7 +309,7 @@ protected:
     void applyDamageTranformation(FloatArray &strainPDC, const FloatArray &tempDamageTensorEigenVals) const;
     void transformStressFromPDC(FloatArray &answer, const FloatArray &stressPDC, const FloatMatrix &t, GaussPoint *gp) const;
     void computeEffectiveStress(FloatArray &stressPDC, const FloatArray &strainPDC,
-                                GaussPoint *gp, TimeStep *tStep) const;
+                                GaussPoint *gp, TimeStep *tStep) ;
     void giveMaterialStiffnessMatrix(FloatMatrix &answer,
                                      MatResponseMode mode, GaussPoint *gp,
                                      TimeStep *tStep) const;

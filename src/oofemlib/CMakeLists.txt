@@ -178,9 +178,13 @@ set (core_export
     outputexportmodule.C
     errorcheckingexportmodule.C
     vtkexportmodule.C
+    vtkbaseexportmodule.C
     vtkxmlexportmodule.C
+    vtkmemoryexportmodule.C
     vtkxmlperiodicexportmodule.C
     vtkxmllatticeexportmodule.C
+    vtkpfemexportmodule.C
+    vtkxfemexportmodule.C
     homexportmodule.C
     matlabexportmodule.C
     gpexportmodule.C
@@ -207,6 +211,7 @@ set (core_arrays
 set (core_engng
     engngm.C
     staggeredproblem.C
+    dummyengngm.C
     )
 
 set (core_element
