@@ -172,8 +172,8 @@ public:
     void initializeFrom(InputRecord &ir) override;
     ///@todo Introduce interpolator and remove these two:
     integrationDomain giveIntegrationDomain() const override { return _Line; }
-    //Element_Geometry_Type giveGeometryType() const override { return EGT_line_1; }
-    Element_Geometry_Type giveGeometryType() const override { return EGT_Composite; }
+    Element_Geometry_Type giveGeometryType() const override { return EGT_line_1; }
+    //Element_Geometry_Type giveGeometryType() const override { return EGT_Composite; }
     void updateLocalNumbering(EntityRenumberingFunctor &f) override;
 
     /*
@@ -192,6 +192,7 @@ public:
     FloatMatrixF<6,6> B3SSMI_getUnknownsGtoLRotationMatrix() const override;
 
     void giveCompositeExportData(std::vector< VTKPiece > &vtkPieces, IntArray &primaryVarsToExport, IntArray &internalVarsToExport, IntArray cellVarsToExport, TimeStep *tStep ) override;
+    virtual void setNumberOfGaussPoints( int nip );
 
 #ifdef __OOFEG
     void drawRawGeometry(oofegGraphicContext &gc, TimeStep *tStep) override;

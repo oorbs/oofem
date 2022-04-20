@@ -114,7 +114,7 @@ class ContactManager;
  */
 class OOFEM_EXPORT Domain
 {
-    public:
+public:
     /// Element list.
     std :: vector< std :: unique_ptr< Element > > elementList;
     /// Dof manager list.
@@ -223,6 +223,7 @@ private:
 public:
     /// Keeps track of next free dof ID (for special Lagrange multipliers, XFEM and such)
     int freeDofID;
+
 private:
 
 #ifdef __PARALLEL_MODE

@@ -3,6 +3,8 @@ Created on Aug 5, 2013
 
 @author: carl
 '''
+import numpy
+
 
 class FEM:
     """ a simple FEM object structure"""
