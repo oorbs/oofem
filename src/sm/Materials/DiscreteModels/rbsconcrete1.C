@@ -40,6 +40,7 @@
 #include "dynamicinputrecord.h"
 #include "classfactory.h"
 #include "sm/Elements/structuralelement.h"
+//#include "sm/Elements/Beams/rbsmbeam3d.h"
 #include "mathfem.h"
 #pragma clang diagnostic pop                            //3 *
 
@@ -56,8 +57,7 @@ RBSConcrete1::RBSConcrete1(int n, Domain *d) : StructuralMaterial(n, d), D(n, d)
 {}
 
 
-void
-RBSConcrete1::initializeFrom(InputRecord &ir)
+void RBSConcrete1::initializeFrom(InputRecord &ir)
 {
     StructuralMaterial::initializeFrom( ir );
 
@@ -78,14 +78,16 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
     this->ft = fc <= 50. ? 0.3 * pow( fc, .6666667 ) : 2.12 * log( 1. + 0.1 * ( fc + 8. ) );
     this->fs = 0.5 * this->fc / shearCoef;
     this->E  = this->D.giveYoungsModulus();
-    this->H  = E * Et / ( E - Et );
+    this->H  = E * Et / ( E - Et ); // for CMD-dependent will be updated by status
     this->G  = D.giveShearModulus();
 
-    fs_k.resize(maxNK);
-    G_k.resize( maxNK );
-    H_k.resize( maxNK );
-    eps_k.resize( maxNK + 1 );
-    epsP_k.resize( maxNK + 1 );
+    fs_k.resize( maxNKShear );
+    G_k.resize( maxNKShear );
+    H_k.resize( maxNKShear );
+
+    //FloatArray eps_k;
+    eps_k.resize( maxNKShear + 1 );
+    epsP_k.resize( maxNKShear + 1 );
 
     // shear yield stress
     this->fs_k = {
@@ -94,6 +96,8 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
         0.5 * this->fc / this->shearCoef * 0.5,
         0.
     };
+    // peak tensile strain for normal springs
+    this->criticalTensileStrain = this->ft / this->E;
 
     ///TODO: this one should be inside the status since it depends on GP
     {
@@ -104,11 +108,12 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
         double maxLinearShearStress = this->linearStressRatio * fs;
         //double maxLinearShearStrain = maxLinearShearStress / G;
 #if 0   // ignore nonlinear shear strains to calculate critical shear strain
-        double criticalShearStrain  = ( 1. + nu ) / 2. * this->criticalStrain;
+        //double criticalShearStrain;
+        criticalShearStrain  = ( 1. + nu ) / 2. * this->criticalStrain;
         // corresponds to CEB-FIP's Ec1 (slope of origin to peak)
         //double Gc1 = fs / criticalShearStrain;
 #else   // consider nonlinear shear strains
-        double criticalShearStrain;
+        //double criticalShearStrain;
         {
             double criticalShearStrainE, criticalShearStrainP;
             /// TODO: better to update this for Dr. Nagai's PR effect
@@ -122,27 +127,45 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
         }
 #endif
         double dStrain = criticalShearStrain - maxLinearShearStrain;
-        double Gt1;
+        double Gth1; //, Gts1, Gts2; // hardening and softening shear modulus//***
         if ( dStrain < ZERO ) {
             OOFEM_WARNING(
                 "The stiffness of the material is too low to provide hardening before the compressive strain of %f",
                 criticalStrain );
-            Gt1 = 0.;
+            Gth1 = 0.;
         } else {
-            Gt1 = ( fs - maxLinearShearStress ) / dStrain ;
+            Gth1 = ( fs - maxLinearShearStress ) / dStrain ;
         }
+
+        /// tensile & shear displacement cracks in mm //***
+        tensile_cmd1 = 0.3, shear_cmd1 = 0.3, shear_cmd2 = 1.;
+        this->tensileCmdKeyPoints = FloatArray{
+            0., criticalTensileStrain,                                 // strain dependent
+            tensile_cmd1 };                                     // crack opening dependent
+        this->shearCmdKeyPoints = FloatArray{
+            0., .5 * criticalShearStrain, criticalShearStrain,  // strain dependent
+            shear_cmd1, shear_cmd2 };                           // crack slip dependent
+        // last two softening stages (Gts1 & Gts2 or only Gts2) should be calculated
+        // depending on element length when - instead of strains - the crack mouth
+        // opening (CMD) values are used, displacement to strain coefficient,
+        // (cmdToStrain = 1 / length of element) can only be obtained from the material
+        // status.
+        //Gts1 =
+            // ( fs_k.at( maxNK - 2 ) - fs_k.at( maxNK - 1 ) ) / ( cmdToStrain * shear_cmd1 - criticalShearStrain );
+        //Gts2 =
+            // ( fs_k.at( maxNK - 1 ) - fs_k.at( maxNK ) ) / ( cmdToStrain * ( shear_cmd2 - shear_cmd1 ) );
         // nonlinear shear (hardening/softening) moduli
         this->G_k = {
             G,
-            Gt1,
-            -500.,
-            -50.
+            Gth1,
+            -500,   //*** Gts1, will be updated by status
+            -50.    //*** Gts2, will be updated by status
         };
     }
     // calculate other multilinear specifications
     eps_k( 0 )  = fs_k( 0 ) / G_k( 0 );
     epsP_k( 0 ) = 0;
-    for ( int i = 1; i < maxNK; ++i ) {
+    for ( int i = 1; i < maxNKShear; ++i ) {
         eps_k( i )  = eps_k( i - 1 ) + ( fs_k( i ) - fs_k( i - 1 ) ) / G_k( i );
         epsP_k( i ) = eps_k( i  ) - fs_k( i ) / G_k( 0 );
         if ( eps_k( i ) != eps_k( i ) || epsP_k( i ) != epsP_k( i ) ){
@@ -150,10 +173,9 @@ RBSConcrete1::initializeFrom(InputRecord &ir)
         }
         H_k( i - 1 ) = ( fs_k( i ) - fs_k( i - 1 ) ) / ( epsP_k( i ) - epsP_k( i - 1 ) );
     }
-    eps_k( maxNK )  = 1.e+16; // INFINITY
-    epsP_k( maxNK ) = 1.e+16; // INFINITY
-    H_k( maxNK - 1 ) = 0.;
-    //
+    eps_k( maxNKShear )  = 1.e+16; // INFINITY
+    epsP_k( maxNKShear ) = 1.e+16; // INFINITY
+    H_k( maxNKShear - 1 ) = 0.;
 }
 
 
@@ -175,15 +197,30 @@ MaterialStatus *RBSConcrete1::CreateStatus(GaussPoint *gp) const
 
 FloatArrayF<6> RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &totalStrain, GaussPoint *gp, TimeStep *tStep ) const
 {
+    //***
+    double H          = this->H;
+    FloatArray G_k    = this->G_k;
+    FloatArray eps_k  = this->eps_k;
+    FloatArray epsP_k = this->epsP_k;
+    FloatArray H_k    = this->H_k;
+
     //auto status = static_cast<RBSConcrete1Status *>( this->giveStatus( gp ) );
     RBSConcrete1Status *status;
     //#pragma omp critical ( gp_status )
         status = static_cast<RBSConcrete1Status *>( this->giveStatus( gp ) );
+        status->updateMaterialCrackSlipParameters( //*** cmd
+            this->maxNKShear, this->maxNCmdS,
+            eps_k, epsP_k, G_k, H_k,
+            this->fs_k, this->shearCmdKeyPoints );
+        status->updateMaterialCrackOpeningParameters(
+            this->maxNKTensile, this->maxNCmdT,
+            H,
+            this->E, this->ft, this->criticalTensileStrain, this->tensile_cmd1 );
 
     // subtract stress thermal expansion
     auto thermalStrain = this->computeStressIndependentStrainVector_3d( gp, tStep, VM_Total );
     auto strain = totalStrain - thermalStrain;
-    FloatArrayF<6> PRS;
+    //FloatArrayF<6> PRS;
 
     // subtract plastic strains
     auto plasticStrain = status->givePlasticStrain();
@@ -501,7 +538,8 @@ FloatArrayF<6> RBSConcrete1::giveRealStressVector_3dBeamSubSoil( const FloatArra
 
 // override structural material to keep confined stresses for redistribution in RBSM element
 FloatArray RBSConcrete1::giveRealStressVector_StressControl(
-    const FloatArray &reducedStrain, const IntArray &strainControl, GaussPoint *gp, TimeStep *tStep ) const
+    const FloatArray &reducedStrain, const IntArray &strainControl,
+    GaussPoint *gp, TimeStep *tStep ) const
 {
 #ifdef DONT_ELIMINATE_CONFINED_STRESS_CONTROL //StructuralMaterialStatus *status
     StructuralMaterialStatus *status;
@@ -669,8 +707,8 @@ RBSConcrete1::giveThermalDilatationVector(GaussPoint *gp, TimeStep *tStep) const
 }
 
 
-int
-RBSConcrete1::giveIPValue(FloatArray &answer, GaussPoint *gp, InternalStateType type, TimeStep *tStep)
+int RBSConcrete1::giveIPValue(
+    FloatArray &answer, GaussPoint *gp, InternalStateType type, TimeStep *tStep )
 {
     RBSConcrete1Status *status = static_cast< RBSConcrete1Status * >( this->giveStatus(gp) );
     if ( type == IST_PlasticStrainTensor ) {
@@ -692,6 +730,11 @@ RBSConcrete1Status::RBSConcrete1Status(GaussPoint * g) :
     stressVector.resize(6);
     tempStressVector = stressVector;
     tempStrainVector = strainVector;
+
+    // displacement dependent parameters
+    //if ( auto *sb = dynamic_cast<RBSMBeam3d *>( this->gp->giveElement() ) ) {
+    cmdToStrain = 1. / this->gp->giveElement()->computeLength();
+    //}
 }
 
 void
@@ -729,6 +772,91 @@ RBSConcrete1Status::updateYourself(TimeStep *tStep)
     shearState1   = tempShearState1;
     shearState2   = tempShearState2;
     // deviatoric trial stress is not really a state variable and was used not to repeat some code...
+}
+
+void RBSConcrete1Status::updateMaterialCrackSlipParameters(
+    int nKS, int nCmdS,
+    FloatArray &eps_k, FloatArray &epsP_k, FloatArray &G_k, FloatArray &H_k,
+    FloatArray fs_k, FloatArray shearCmdKeyPoints )
+{
+    if ( nCmdS == 0  ) {
+        return;
+    } else if ( nCmdS > nKS ) {
+        OOFEM_ERROR(
+            "number of crack displacement multilinear stages (%d) "
+            "should be smaller than total multilinear stages (%d)",
+            nCmdS, nKS )
+    } else if ( nCmdS < 0 ) {
+        OOFEM_ERROR(
+            "positive integer expected for the "
+            "number of crack displacement multi-linear stages "
+            "(%d)",
+            nCmdS )
+    }
+    // some key points are strain others are displacement; for consistency,
+    for ( int n = 2; n <= nKS - nCmdS + 1; ++n ) { // nK-nCmd+1=3 ***
+        // convert all strains to crack mouth opening
+        shearCmdKeyPoints.at( n ) = shearCmdKeyPoints.at( n ) / cmdToStrain;
+    }
+    // calculate displacement-based softening:
+    for ( int n = nKS - nCmdS + 1; n <= nKS; ++n ) { //*** n=3
+        double f1  = n > 1 ? fs_k.at( n - 1 ) : 0.; // at point 2 (peak)
+        double *f2 = &fs_k.at( n ); // at point 3 (first drop with cmd)
+        G_k.at( n ) =
+            ( *f2 - f1 )
+            / ( cmdToStrain
+                * ( shearCmdKeyPoints.at( n + 1 ) // 4 first cmd after peak
+                    - shearCmdKeyPoints.at( n ) ) ); // 3 peak
+        eps_k.at( n ) = eps_k.at( n - 1 )
+            + ( fs_k.at( n ) - fs_k.at( n - 1 ) ) / G_k.at( n );
+        epsP_k.at( n ) = eps_k.at( n ) - fs_k.at( n ) / G_k.at( 1 );
+        if ( eps_k.at( n ) != eps_k.at( n ) || epsP_k.at( n ) != epsP_k.at( n ) ) {
+            OOFEM_ERROR( "Unable to calculate plastic parameters due to divide to zero error." )
+        }
+        H_k.at( n - 1 ) = ( fs_k.at( n ) - fs_k.at( n - 1 ) )
+                        / ( epsP_k.at( n ) - epsP_k.at( n - 1 ) );
+    }
+}
+
+void RBSConcrete1Status::updateMaterialCrackOpeningParameters(
+    int nKT, int nCmdT,
+    double &H,
+    double E, double ft, double tensCritStrain, double tensileCmdU )
+{
+    if ( nCmdT == 0  ) {
+        return;
+    } else if ( nCmdT > nKT ) {
+        OOFEM_ERROR(
+            "number of crack displacement opening stages (%d) "
+            "should be smaller than total multi-linear stages (%d)",
+            nCmdT, nKT )
+    } else if ( nCmdT < 0 ) {
+        OOFEM_ERROR(
+            "positive integer expected for the "
+            "number of crack displacement multi-linear stages (%d)",
+            nCmdT )
+    }
+#if 0 // for multilinear tensile behavior use a code similar to shear, e.g.,
+    // some key points are strain others are displacement; for consistency,
+    for ( int n = 2; n <= nKT - nCmdT + 1; ++n ) { // nK-nCmd+1=3
+        // convert all strains to crack mouth opening
+        tensileCmdKeyPoints.at( n ) = tensileCmdKeyPoints.at( n ) / cmdToStrain;
+    }
+    // calculate displacement-based softening:
+    for ( int n = nKT - nCmdT + 1; n <= nKT; ++n ) { //*** n=3
+        double f1  = n > 1 ? ft_k.at( n - 1 ) : 0.; // at 2 (peak)
+        double *f2 = &ft_k.at( n ); // at 3 (first drop with cmd)
+        E_k.at( n ) = //++++++++++++
+            ( *f2 - f1 )
+            / ( cmdToStrain
+                * ( tensileCmdKeyPoints.at( n + 1 ) // 4 first cmd after peak
+                    - tensileCmdKeyPoints.at( n ) ) ); // 3 peak
+    }
+#endif
+    double tensUltimStrain = tensileCmdU * cmdToStrain;
+    double Et              = ( 0. - ft ) / ( tensUltimStrain - tensCritStrain );
+
+    H = E * Et / ( E - Et );
 }
 
 } // end namespace oofem

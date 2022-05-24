@@ -13,11 +13,11 @@ OutputManager tstep_all dofman_all element_all
 #
 ndofman 5 nelem 2 ncrosssect 2 nmat 4 nbc 2 nic 0 nltf 1 nset 5 nxfemman 0
 #
-node 5     coords 3   1      0      0
-node 6     coords 3  -1      0      0
-node 7     coords 3   0     -1      0
-node 8     coords 3   0      0      1
-node 9     coords 3   0      0     -1
+node 5     coords 3   0.57735026919      -0.33333333333      0
+node 6     coords 3  -0.57735026919      -0.33333333333      0
+node 7     coords 3   0                   0.66666666666      0
+node 8     coords 3   0                   0                  2
+node 9     coords 3   0                   0                 -2
 rbsmtetra 1   nodes 4   5 6 7 8   itz 3
 rbsmtetra 2   nodes 4   7 6 5 9   itz 3
 #negative volume:

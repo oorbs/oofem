@@ -154,6 +154,8 @@ public:
 
     void computeLumpedMassMatrix(FloatMatrix &answer, TimeStep *tStep) override;
 
+    double computeLength() override { return 0.; };
+
     int giveNumberOfIPForMassMtrxIntegration() override { return 4; }
 
     void giveInternalForcesVector(FloatArray &answer, TimeStep *, int useUpdatedGpRecord = 0) override;

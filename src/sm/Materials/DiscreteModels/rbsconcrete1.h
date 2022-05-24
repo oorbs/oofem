@@ -75,21 +75,35 @@ protected:
 
     //  *** M U L T I L I N E A R  S H E A R ***
     /// number of multilinear stages
-    static const int maxNK = 4;
+    static const int maxNKShear = 4, maxNKTensile = 2;
+    /// number of final crack mouth opening stages
+    static const int maxNCmdS = 2, maxNCmdT = 1;
     // these can be constants
     /// linear stress coefficient before f'c (between 0. and 1.)
     double linearStressRatio = 0.;
     /// shear coefficient
     double shearCoef = 0.;
-    /// shear spring strain corresponding to peak
+    // macroscopic compressive strain corresponding to peak
     double criticalStrain = 0.;
-    //
+    /// shear spring strain corresponding to peak
+    double criticalShearStrain = 0.;
+    /// tensile spring strain corresponding to peak
+    double criticalTensileStrain = 0.;
+
+    /// todo: should be material input properties.
+    /// shear displacement cracks in mm //***
+    double tensile_cmd1 = 0.3, shear_cmd1 = 0.3, shear_cmd2 = 1.;
+    /// critical strain and shear crack mouth openings [mm] stage 1 & 2
+    FloatArray shearCmdKeyPoints;
+    /// critical strain and tensile crack mouth openings [mm] stage 1
+    FloatArray tensileCmdKeyPoints;
+
     /// elastic shear modulus
     double G;
     /// shear stresses (sigma) & hardening (Gt)
     FloatArray fs_k, G_k;
     //FloatArrayF<maxNK> sigma_k, G_k;
-    /// elastic & plastic strains (eps, epsP)
+    /// strains corresponding to strain-strain key-points
     FloatArray eps_k, epsP_k;
     /// plastic modulus (H)
     FloatArray H_k;
@@ -152,6 +166,9 @@ protected:
     int tempShearState2 = 0;
     int shearState2     = 0;
 
+    // Crack Mouth Displacement to Strain Conversion factor
+    double cmdToStrain;
+
 public:
     RBSConcrete1Status(GaussPoint * g);
 
@@ -195,6 +212,39 @@ public:
     //void printOutputAt(FILE *file, TimeStep *tStep) override;
     //void saveContext(DataStream &stream, ContextMode mode) override;
     //void restoreContext(DataStream &stream, ContextMode mode) override;
+
+    /**
+     * Updates multi-linear parameters for the cracked stage where slip displacement
+     * is used instead of strain
+     * @param nKS Number of multilinear stages for tensile behavior
+     * @param nCmdS number of shear slip crack displacement key points
+     * @param eps_K array of strain key points
+     * @param epsP_K array of plastic strain key points
+     * @param G_k array of tangent shear moduli
+     * @param H_k array of plastic moduli
+     * @param fs_k array of stress key points
+     * @param shearCmdKeyPoints array of shear crack slip key displacements
+     */
+    void updateMaterialCrackSlipParameters(
+        int nKS, int nCmdS,
+        FloatArray &eps_k, FloatArray &epsP_k, FloatArray &G_k, FloatArray &H_k,
+        FloatArray fs_k, FloatArray shearCmdKeyPoints );
+
+    /**
+     * Updates multilinear parameters for the cracked stage where opening
+     * displacement is used instead of strain
+     * @param nKT Number of multilinear stages for shear behavior
+     * @param nCmdT number of tensile opening displacements key points
+     * @param H plastic modulus
+     * @param E Young modulus
+     * @param ft tensile strength
+     * @param tensCritStrain tensile strain at peak stress
+     * @param tensileCmdU ultimate tensile crack mouth opening
+     */
+    void updateMaterialCrackOpeningParameters(
+        int nKT, int nCmdT,
+        double &H,
+        double E, double ft, double tensCritStrain, double tensileCmdU );
 };
 
 } // end namespace oofem

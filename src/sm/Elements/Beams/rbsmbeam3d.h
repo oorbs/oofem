@@ -95,6 +95,8 @@ public:
     void postInitialize() override;
 
     virtual void setNumberOfGaussPoints( int nip );
+    double computeLength() override { return LIBeam3d::computeLength(); };
+
     void RBSMTetraInterface_computeStressVector( FloatArray &answer, TimeStep *tStep );
     /**
      * Computes stress rotation matrix
