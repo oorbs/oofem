@@ -138,7 +138,7 @@ void RBSConcrete1::initializeFrom(InputRecord &ir)
         }
 
         /// tensile & shear displacement cracks in mm //***
-        tensile_cmd1 = 0.3, shear_cmd1 = 0.3, shear_cmd2 = 1.;
+        tensile_cmd1 = 0.3, shear_cmd1 = 0.15, shear_cmd2 = 0.3;
         this->tensileCmdKeyPoints = FloatArray{
             0., criticalTensileStrain,                                 // strain dependent
             tensile_cmd1 };                                     // crack opening dependent

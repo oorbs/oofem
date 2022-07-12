@@ -9,6 +9,10 @@ fabs
 fibermaterials
 geonode
 geonodes
+lstype
+manrmsteps
+maxiter
+maxinc
 Mehrpay
 multilinear
 ncrosssect
@@ -20,6 +24,7 @@ omega_crit
 oneapi
 oofem
 Patzak
+profileopt
 rbsm
 rbsmtetra
 rigidarmnode
@@ -27,6 +32,8 @@ rtetcellsofnodes
 rtetclonesofnodes
 Saeid
 stype
+smtype
+tstep
 tutorialmaterial
 thicks
 Ycoords
