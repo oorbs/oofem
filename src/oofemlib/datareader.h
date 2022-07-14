@@ -84,6 +84,12 @@ public:
     virtual bool peakNext(const std :: string &keyword) { return false; }
 
     /**
+     * Allows to navigate back and forth in records (non-effective if not overridden).
+     * @param leap number of records to skip and move pointer (negative for backward).
+     */
+    virtual void navigate(int leap) { return; };
+
+    /**
      * Allows to detach all data connections.
      */
     virtual void finish() = 0;
