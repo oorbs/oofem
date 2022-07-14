@@ -223,6 +223,8 @@ private:
 public:
     /// Keeps track of next free dof ID (for special Lagrange multipliers, XFEM and such)
     int freeDofID;
+    /// Keeps track of elements Maximum Global Number to assign number to non-user elements
+    int maxElemGlNum = 0;
 
 private:
 

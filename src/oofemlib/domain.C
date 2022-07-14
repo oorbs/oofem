@@ -579,6 +579,17 @@ Domain :: instanciateYourself(DataReader &dr)
     elementList.resize(nelem);
     Timer timer;
     timer.startTimer();
+
+    // Todo: if defined RBSM cmake option
+    for ( int i = 1; i <= nelem; i++ ) {
+        auto &ir = dr.giveInputRecord( DataReader ::IR_elemRec, i );
+        IR_GIVE_RECORD_KEYWORD_FIELD( ir, name, num );
+        if ( this->maxElemGlNum < num ) this->maxElemGlNum = num;
+        ir.finish( false );
+    }
+    // S: since data reader disregards record ID, I had to implement a navigate method.
+    dr.navigate( -nelem );
+
     for ( int i = 1; i <= nelem; i++ ) {
         auto &ir = dr.giveInputRecord(DataReader :: IR_elemRec, i);
         // read type of element
@@ -595,6 +606,7 @@ Domain :: instanciateYourself(DataReader &dr)
 
         ir.finish();
     }
+
     timer.stopTimer();
     OOFEM_LOG_INFO( "\nDomain info: user time consumed by elements initialization: %.2fs\n", timer.getUtime() );
 

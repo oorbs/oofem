@@ -67,7 +67,7 @@ std::map<int, std::set<int>> RBSMTetra::clonesOfGeoNode;
 std::map<int, std::set<int>> RBSMTetra::cellElementsOfGeoNode;
 std::map<std::vector<int>, std::set<int>> RBSMTetra::mapFacetElement;
 int RBSMTetra::domain_nDofman = 0, RBSMTetra::domain_maxDofGlNum = 0;
-int RBSMTetra::domain_nElements = 0;
+int RBSMTetra::domain_nElements = 0, RBSMTetra::domain_nUserElems = 0;
 int RBSMTetra::domain_buffer = 100;
 int RBSMTetra::prepProgress     = -1;
 
@@ -104,12 +104,13 @@ void RBSMTetra::initializeFrom( InputRecord &ir )
     }
     if ( !RBSMTetra::domain_nElements ) {
         RBSMTetra::domain_nElements = domain->giveNumberOfElements();
+        RBSMTetra::domain_nUserElems = domain_nElements;
     }
     if ( !RBSMTetra::domain_maxDofGlNum ) {
         RBSMTetra::domain_maxDofGlNum = this->findMaxDofmanagerGlobalNumber();
     }
 
-    int progress = ( this->number * 100. / RBSMTetra::domain_nElements );
+    int progress = ( this->number * 100. / RBSMTetra::domain_nUserElems );
     if (progress % 10 == 0 && progress > RBSMTetra::prepProgress) {
         prepProgress = progress;
         OOFEM_LOG_INFO( "\nRBSM info: Preprocessing input file, current progress: %d%%", progress );
@@ -640,7 +641,7 @@ int RBSMTetra::findMaxDofmanagerGlobalNumber()
         num = d->dofManagerList[i - 1]->giveGlobalNumber();
         if ( maxNum < num ) {
             maxNum = num;
-        }else if ( maxNum == num ){
+        } else if ( maxNum == num ) {
             // just an extra check
             OOFEM_ERROR( "Duplicate of DOF global number %d was found", maxNum );
         }
@@ -648,21 +649,24 @@ int RBSMTetra::findMaxDofmanagerGlobalNumber()
     return maxNum;
 }
 
-int RBSMTetra::nextElementGlobalNumber( int baseNumber )
+int RBSMTetra::nextElementGlobalNumber( int &number, int nElemPlus, int skipNumber )
 // finds the next available element's global number
 {
-    int globalNumber, count, nElem = 0;
-    Domain *d = this->giveDomain();
+    int globalNumber;
+    Domain *domain = this->giveDomain();
 
-    nElem = d->giveNumberOfElements();
-    if ( nElem <= 0 ) {
-        OOFEM_ERROR( "Domain returned invalid element count: %d\n", nElem );
+    #ifdef _OPENMP
+    #pragma omp critical
+    #endif
+    {
+        globalNumber = skipNumber +    domain->maxElemGlNum     + 1;
+        number       = skipNumber + RBSMTetra::domain_nElements + 1;
+
+        // update domain_*
+        domain->maxElemGlNum = std::max( globalNumber,domain->maxElemGlNum );
+        RBSMTetra::domain_nElements += nElemPlus;
     }
-
-    // first try for the next DOF manager's global number
-    // @todo: this is not a good method, reliably find available elem number
-    globalNumber = nElem + baseNumber;
-
+    /*
     // make sure that global number is unique
     count = 0;
     auto hasSameNum{
@@ -679,7 +683,7 @@ int RBSMTetra::nextElementGlobalNumber( int baseNumber )
             OOFEM_ERROR( "Failed to find a unique id to make 'RBSM Tetra element'" );
         }
     }
-
+    */
     return globalNumber;
 }
 
@@ -936,7 +940,7 @@ int RBSMTetra::makeSpringsBeam( int globalNumber, int dmanA, int dmanB )
 
     // todo: speedup: Element global numbers could be evaluated from a max number similar to DOF Managers
     d->resizeElements( nElements + 1 );
-    d->setElement( number, std::move( element ) );
+    d->elementList[number - 1] = std::move(element);
 
     return number;
 }

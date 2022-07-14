@@ -80,7 +80,8 @@ protected:
 
     // Added to this class to avoid domain modification todo: actually belong to domain
     /// missing domain class properties as a workaround to avoid modifying domain class
-    static int domain_nDofman, domain_nElements, domain_buffer;
+    /// nDofman, nElements include added ones by RBSM, User~ only includes .in file
+    static int domain_nDofman, domain_nElements, domain_nUserElems, domain_buffer;
     /// largest global number assigned to an existing DOF manager
     static int domain_maxDofGlNum;
 
@@ -240,14 +241,6 @@ public:
     int makeDofmanager( InputRecord &dummyIr, const int globalNumber, const int number,
                         const bool domainDofListResize = true, const int resizeExtraRoom = 0 );
     /**
-     * @param nDofmanPlus increase number of DOF managers by (default 1).
-     * @param skipNumber skip available global DOF managers by (default 0).
-     * @param number stores next available DOF number plus skip number.
-     * @returns next available global number plus skip number for a new DOF manager,
-     * global number represents the number given inside an input file.
-     */
-    int nextDofmanagerGlobalNumber( int &number, int nDofmanPlus = 1, int skipNumber = 0 );
-    /**
      * finds maximum global number used for a new Dof manager
      * @returns maximum global number of all existing DOFs,
      * global number represents the number given inside an input file.
@@ -261,10 +254,21 @@ public:
      */
     bool isValidDofmanagerGlobalNumber( int globalNum );
     /**
-     * @returns next available global number for a new element,
+     * @param number stores next available DOF number (local) plus skip number.
+     * @param nDofmanPlus increase number of DOF managers by (default 1).
+     * @param skipNumber skip available global DOF managers by (default 0).
+     * @returns next available global number plus skip number for a new DOF manager,
      * global number represents the number given inside an input file.
      */
-    int nextElementGlobalNumber( int baseNumber = 1 );
+    int nextDofmanagerGlobalNumber( int &number, int nDofmanPlus = 1, int skipNumber = 0 );
+    /**
+     * @param number stores next available number (local) plus skip number.
+     * @param nElemPlus increase number of domain_nElements variable by (default 1).
+     * @param skipNumber skip available global element number by (default 0).
+     * @returns next available global number plus skip number for a new element,
+     * global number represents the user-given number given inside an input file.
+     */
+    int nextElementGlobalNumber( int &number, int nElemPlus = 1, int skipNumber = 0 );
 
     /**
      * Makes springs beam element and returns assigned local number
