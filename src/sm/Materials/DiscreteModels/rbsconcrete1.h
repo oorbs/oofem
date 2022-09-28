@@ -42,7 +42,7 @@
 //@{
 #define _IFT_RBSConcrete1_Name "rbsconcrete1"
 #define _IFT_RBSConcrete1_fc "fc"
-#define _IFT_RBSConcrete1_tangentmodulus "et" //Et
+//#define _IFT_RBSConcrete1_tangentmodulus "et" //Et
 //#define _IFT_RBSConcrete1_hardeningmoduli "h"
 //@}
 
@@ -59,7 +59,7 @@ protected:
     /// Elastic modulus.
     double E = 0.;
     /// tangent modulus.
-    double Et = 0.;
+    // double Et = 0.;
     /// plastic modulus.
     double H = 0.;
 
@@ -92,7 +92,7 @@ protected:
 
     /// todo: should be material input properties.
     /// shear displacement cracks in mm //***
-    double tensile_cmd1 = 0.3, shear_cmd1 = 0.3, shear_cmd2 = 1.;
+    double tensile_cmd1 = 0., shear_cmd1 = 0., shear_cmd2 = 0.;
     /// critical strain and shear crack mouth openings [mm] stage 1 & 2
     FloatArray shearCmdKeyPoints;
     /// critical strain and tensile crack mouth openings [mm] stage 1

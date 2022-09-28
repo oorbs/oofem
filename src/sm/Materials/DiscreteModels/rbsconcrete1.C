@@ -63,7 +63,7 @@ void RBSConcrete1::initializeFrom(InputRecord &ir)
 
     D.initializeFrom( ir );
     IR_GIVE_FIELD( ir, this->fc, _IFT_RBSConcrete1_fc );
-    IR_GIVE_FIELD( ir, this->Et, _IFT_RBSConcrete1_tangentmodulus ); ///fixme: Et should be calculated automatically
+    //IR_GIVE_FIELD( ir, this->Et, _IFT_RBSConcrete1_tangentmodulus );
     IR_GIVE_FIELD(ir, this->nu, _IFT_IsotropicLinearElasticMaterial_n);
 
 
@@ -78,7 +78,7 @@ void RBSConcrete1::initializeFrom(InputRecord &ir)
     this->ft = fc <= 50. ? 0.3 * pow( fc, .6666667 ) : 2.12 * log( 1. + 0.1 * ( fc + 8. ) );
     this->fs = 0.5 * this->fc / shearCoef;
     this->E  = this->D.giveYoungsModulus();
-    this->H  = E * Et / ( E - Et ); // for CMD-dependent will be updated by status
+    //this->H  = E * Et / ( E - Et ); // for CMD-dependent will be updated by status
     this->G  = D.giveShearModulus();
 
     fs_k.resize( maxNKShear );
@@ -137,10 +137,10 @@ void RBSConcrete1::initializeFrom(InputRecord &ir)
             Gth1 = ( fs - maxLinearShearStress ) / dStrain ;
         }
 
-        /// tensile & shear displacement cracks in mm //***
-        tensile_cmd1 = 0.3, shear_cmd1 = 0.15, shear_cmd2 = 0.3;
+        /// tensile & shear displacement cracks in mm // 0.3 0.15 0.3
+        tensile_cmd1 = 0.3, shear_cmd1 = 0.05, shear_cmd2 = 0.2;
         this->tensileCmdKeyPoints = FloatArray{
-            0., criticalTensileStrain,                                 // strain dependent
+            0., criticalTensileStrain,                          // strain dependent
             tensile_cmd1 };                                     // crack opening dependent
         this->shearCmdKeyPoints = FloatArray{
             0., .5 * criticalShearStrain, criticalShearStrain,  // strain dependent
@@ -184,7 +184,7 @@ void RBSConcrete1::giveInputRecord(DynamicInputRecord &ir)
     StructuralMaterial::giveInputRecord(ir);
     D.giveInputRecord(ir);
     ir.setField(this->fc, _IFT_RBSConcrete1_fc );
-    ir.setField(this->Et, _IFT_RBSConcrete1_tangentmodulus);
+    //ir.setField(this->Et, _IFT_RBSConcrete1_tangentmodulus);
     //ir.setField(this->H, _IFT_RBSConcrete1_hardeningmoduli);
 }
 
@@ -801,7 +801,7 @@ void RBSConcrete1Status::updateMaterialCrackSlipParameters(
     // calculate displacement-based softening:
     for ( int n = nKS - nCmdS + 1; n <= nKS; ++n ) { //*** n=3
         double f1  = n > 1 ? fs_k.at( n - 1 ) : 0.; // at point 2 (peak)
-        double *f2 = &fs_k.at( n ); // at point 3 (first drop with cmd)
+        double *f2 = &fs_k.at( n ); // at point 3 (first drop)
         G_k.at( n ) =
             ( *f2 - f1 )
             / ( cmdToStrain

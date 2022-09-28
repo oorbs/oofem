@@ -1156,23 +1156,29 @@ int RBSMTetra::findSpringsBeamMaterial( int nFacet )
         auto itzInterface = static_cast<ItzInterface *>(
             this->giveInterface( ItzInterfaceType ) );
         elementItzSupport = itzInterface == nullptr ? false : true;
-        // if element cannot provide ITZ try CS
+        // if element cannot provide ITZ, try Cross-Section
         if ( !elementItzSupport ||
-            !itzInterface->ItzInterface_giveItzMaterialNumber() ) {
+            ( itzID = itzInterface->ItzInterface_giveItzMaterialNumber()) == 0  ) {
             itzInterface = static_cast<ItzInterface *>(
                 this->giveCrossSection()->giveInterface( ItzInterfaceType ) );
             csItzSupport = itzInterface == nullptr ? false : true;
+            if ( csItzSupport ) itzID = itzInterface->ItzInterface_giveItzMaterialNumber();
         }
-        if ( !elementItzSupport && !csItzSupport ) {
-            OOFEM_ERROR( "RB element %d and its CS do not support ITZ interface",
-                this->number );
-        } else if (!itzInterface->ItzInterface_giveItzMaterialNumber()) {
-            OOFEM_ERROR( "For RB element %d or its CS no ITZ material provided "
-                         "to link material %d to %d",
-                this->number, sisterMatNumber, matNumber );
-        } else {
-            itzID = itzInterface->ItzInterface_giveItzMaterialNumber();
+
+        // check if we have a valid ITZ ID from element or CS
+        if ( !itzID ) {
+            if ( !elementItzSupport && !csItzSupport ) {
+                // neither element nor CS support ITZ
+                OOFEM_ERROR( "RB element %d and its CS do not support ITZ interface",
+                    this->number );
+            } else {
+                // element and/or CS support ITZ but ITZ number not provided
+                OOFEM_ERROR( "For RB element %d or its CS no ITZ material provided "
+                             "to link material %d to %d",
+                    this->number, sisterMatNumber, matNumber );
+            }
         }
+
         if ( RBSItz *itz = dynamic_cast<RBSItz *>(
                  domain->giveMaterial( itzID ) ) ) {
             // update mat number as ITZ suggests
