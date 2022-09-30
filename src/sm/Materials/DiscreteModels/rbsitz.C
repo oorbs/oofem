@@ -87,6 +87,9 @@ int RBSItz::findItzMaterial( int primaryMaterial, int secondaryMaterial )
         }
     }
     // could not find a match
+    OOFEM_ERROR(
+        "Could not find a valid ITZ material number between Mat %i and Mat %i",
+        primaryMaterial, secondaryMaterial );
     return 0;
 }
 

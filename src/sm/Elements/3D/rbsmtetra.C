@@ -1182,8 +1182,12 @@ int RBSMTetra::findSpringsBeamMaterial( int nFacet )
         if ( RBSItz *itz = dynamic_cast<RBSItz *>(
                  domain->giveMaterial( itzID ) ) ) {
             // update mat number as ITZ suggests
-            matNumber = itz->findItzMaterial(
-                sisterMatNumber, matNumber );
+            int interMat = 0;
+            if ( !( interMat = itz->findItzMaterial( sisterMatNumber, matNumber ) ) ) {
+                OOFEM_ERROR("Could not find interfacial material between Mat %g and Mat %g",
+                    sisterMatNumber, matNumber)
+            }
+            matNumber = interMat;
         } else {
             OOFEM_ERROR( "Could not use material %d as ITZ material", itzID );
         }
