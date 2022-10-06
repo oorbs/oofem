@@ -137,8 +137,8 @@ void RBSConcrete1::initializeFrom(InputRecord &ir)
             Gth1 = ( fs - maxLinearShearStress ) / dStrain ;
         }
 
-        /// tensile & shear displacement cracks in mm // 0.3 0.15 0.3
-        tensile_cmd1 = 0.3, shear_cmd1 = 0.05, shear_cmd2 = 0.2;
+        /// tensile & shear displacement cracks in mm // 0.3 0.15 0.3 || 0.3 0.05 -.2
+        tensile_cmd1 = 0.05, shear_cmd1 = 0.05, shear_cmd2 = 0.2;
         this->tensileCmdKeyPoints = FloatArray{
             0., criticalTensileStrain,                          // strain dependent
             tensile_cmd1 };                                     // crack opening dependent
@@ -285,10 +285,10 @@ FloatArrayF<6> RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &tota
     //double J2 = this->computeSecondStressInvariant(devTrialStress);
 
     /// Spring nonlinear curve state
-    int nKn0        = status->giveNormalState();
-    int nKs1        = status->giveShearState1();
-    int nKs2        = status->giveShearState2();
-    double k = status->giveK();
+    int nKn0   = status->giveNormalState();
+    int nKs1   = status->giveShearState1();
+    int nKs2   = status->giveShearState2();
+    double k   = status->giveK();
     double ks1 = status->giveKs1();
     double ks2 = status->giveKs2();
 
@@ -383,7 +383,7 @@ FloatArrayF<6> RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &tota
                 plasticStrain.at( 5 ) += dPlStrain;
 
                 int c = 0;
-                // this can be a loop "WHILE" or deliberately done once "IF"
+                // this can be either a "WHILE" loop or deliberately done once with "IF"
                 while ( ks1 > epsP_k( nKs1 + 1 ) ) {
                     if ( ++c > 100 ) {
                         OOFEM_ERROR("Plastic stress S1 calculation failed after %i corrections", c);
