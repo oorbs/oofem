@@ -137,8 +137,17 @@ void RBSConcrete1::initializeFrom(InputRecord &ir)
             Gth1 = ( fs - maxLinearShearStress ) / dStrain ;
         }
 
-        /// tensile & shear displacement cracks in mm // 0.3 0.15 0.3 || 0.3 0.05 -.2
-        tensile_cmd1 = 0.05, shear_cmd1 = 0.05, shear_cmd2 = 0.2;
+        /// tensile & shear displacement cracks in mm // 0.3 0.15 0.3 || 0.05 0.05 0.2
+        tensile_cmd1 = 0.05, shear_cmd1 = 0.05, shear_cmd2 = 0.5;
+        OOFEM_LOG_INFO( "** IMPLEMENTATION OF MATERIAL MODEL %s No. %d: \n",
+            this->giveClassName(), this->giveNumber() );
+        //for ( int i = 0; i < ; ++i ) {
+            OOFEM_LOG_INFO( " > Strength f'c %g Elastic Modulus E %g Poisson's Ratio nu %g\n",
+                        this->fc, this->E, this->nu);
+            OOFEM_LOG_INFO( " > Failure mesoscopic shear T %g Si %g Sii %g\n",
+                        tensile_cmd1, shear_cmd1, shear_cmd2);
+        //}
+        OOFEM_LOG_INFO( "** \n");
         this->tensileCmdKeyPoints = FloatArray{
             0., criticalTensileStrain,                          // strain dependent
             tensile_cmd1 };                                     // crack opening dependent
