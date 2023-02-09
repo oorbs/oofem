@@ -11,6 +11,7 @@ set (sm_element
     Elements/3D/qspace.C 
     Elements/3D/q27space.C
     Elements/3D/ltrspace.C 
+    Elements/3D/rbsmtetra.C
     Elements/3D/ltrspaceboundary.C
     Elements/3D/ltrspaceboundarytruss.C
     Elements/3D/ltrspaceboundarymembrane.C
@@ -35,6 +36,8 @@ set (sm_element
     Elements/Beams/beambaseelement.C
     Elements/Beams/beam2d.C 
     Elements/Beams/beam3d.C
+    Elements/Beams/rbsbeam3d.C
+    Elements/Beams/rbsmbeam3d.C
     Elements/Beams/libeam3dboundary.C
     Elements/Beams/libeam3dboundarytruss.C
     Elements/Beams/libeam3dboundarymembrane.C
@@ -164,6 +167,7 @@ set (sm_crosssection
     CrossSections/simplecrosssection.C
     CrossSections/layeredcrosssection.C
     CrossSections/fiberedcs.C
+    CrossSections/rbsfiberedcs.C
     CrossSections/structuralinterfacecrosssection.C
     CrossSections/variablecrosssection.C
     CrossSections/warpingcrosssection.C
@@ -267,7 +271,9 @@ set (sm_material
     Materials/winklermodel.C
     Materials/structmatsettable.C
     Materials/tutorialmaterial.C
-    Materials/graddamagematerialextensioninterface.C    
+    Materials/DiscreteModels/rbsconcrete1.C
+    Materials/DiscreteModels/rbsitz.C
+    Materials/graddamagematerialextensioninterface.C
     Materials/rcm2.C
     Materials/isodamagemodel.C
     Materials/steelrelaxmat.C

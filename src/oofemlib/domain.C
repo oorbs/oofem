@@ -577,6 +577,19 @@ Domain :: instanciateYourself(DataReader &dr)
     // read elements
     elementList.clear();
     elementList.resize(nelem);
+    Timer timer;
+    timer.startTimer();
+
+    // Todo: if defined RBSM cmake option
+    for ( int i = 1; i <= nelem; i++ ) {
+        auto &ir = dr.giveInputRecord( DataReader ::IR_elemRec, i );
+        IR_GIVE_RECORD_KEYWORD_FIELD( ir, name, num );
+        if ( this->maxElemGlNum < num ) this->maxElemGlNum = num;
+        ir.finish( false );
+    }
+    // S: since data reader disregards record ID, I had to implement a navigate method.
+    dr.navigate( -nelem );
+
     for ( int i = 1; i <= nelem; i++ ) {
         auto &ir = dr.giveInputRecord(DataReader :: IR_elemRec, i);
         // read type of element
@@ -593,6 +606,9 @@ Domain :: instanciateYourself(DataReader &dr)
 
         ir.finish();
     }
+
+    timer.stopTimer();
+    OOFEM_LOG_INFO( "\nDomain info: user time consumed by elements initialization: %.2fs\n", timer.getUtime() );
 
     BuildElementPlaceInArrayMap();
 
@@ -839,7 +855,12 @@ Domain :: instanciateYourself(DataReader &dr)
             // read type of set
             IR_GIVE_RECORD_KEYWORD_FIELD(ir, name, num);
             // Only one set for now (i don't see any need to ever introduce any other version)
-            std :: unique_ptr< Set > set = std::make_unique<Set>(num, this); //classFactory.createSet(name.c_str(), num, this)
+            //std :: unique_ptr< Set > set = std::make_unique<Set>(num, this); //classFactory.createSet(name.c_str(), num, this)
+            // Original 'Set' class had limitation with accessing polygon and polyhedron geometry
+            // nodes or Voronoi cell nodes (application in methods such as lattice or discrete
+            // models). We extended the 'Set' class introducing a new Set type (Polyset).
+            //std::unique_ptr<Set> set = classFactory.createSet( name.c_str(), num, this );
+            std::unique_ptr<Set> set( classFactory.createSet( name.c_str(), num, this ) );
             if ( !set ) {
                 OOFEM_ERROR("Couldn't create set: %s", name.c_str());
             }
@@ -1332,7 +1353,7 @@ Domain :: createDofs()
             // Finally create the new DOF: 
             //printf("Creating: node %d, id = %d, dofType = %d, bc = %d, ic = %d\n", i, id, dtype, bcid, icid);
             if ( !dman->hasDofID((DofIDItem)id) ) {
-
+                // @todo: S: it may be a good idea to release a warning for rigid arm nodes
                 Dof *dof = classFactory.createDof(dtype, (DofIDItem)id, dman);
                 dof->setBcId(bcid); // Note: slave dofs and such will simple ignore this.
                 dof->setIcId(icid);

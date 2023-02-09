@@ -77,7 +77,7 @@ protected:
 
 public:
     /**
-     * Creates a empty set with given number and belonging to given domain.
+     * Creates an empty set with given number and belonging to given domain.
      * @param n Set number.
      * @param d Domain to which component belongs to.
      */

@@ -1,0 +1,43 @@
+box2_conf.out
+Simple Unv
+StaticStructural nsteps 10 nmodules 0 profileopt 1 manrmsteps 400 maxiter 800 maxinc .1
+#vtkxml tstep_all domain_all vars 7 1 2 4 5 7 8 12 stype 0
+#vtkxml tstep_all domain_all cellvars 2 7 8
+domain 3d
+OutputManager tstep_all dofman_all element_all
+ncrosssect 1 nmat 1 nbc 4 nic 0 nltf 1 nset 5
+#Section
+SimpleCS 1 thick 1.0 width 1.0 material 1 set 3
+#FiberedCS 1 fibermaterials 1 1 thicks 1 1.0 widths 1 1.0 fiberycentrecoords 1 0.0 fiberzcentrecoords 1 0.0 thick 1.0 width 1.0 set 3
+#Material
+isoLE 1 d 1. E 3.e4 n 0. tAlpha 1.2e-5
+#tutorialmaterial 1 d 1. E 3.e4 n 0.2 tAlpha 1.2e-5 sigy 120.0 H 0.
+#MisesMat 1 d 1.0 E 2e11 n 0.3 sig0 500e6 H 8.456659619e8 omega_crit 0 a 0 tAlpha 1.0
+#
+BoundaryCondition 1 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0. 0. -1. 0. 0. 0.  set 1
+BoundaryCondition 2 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0. 0. 0. 0. 0. 0.   set 2
+BoundaryCondition 3 loadTimeFunction 1  dofs 1  1            values 1  0.                  set 4
+BoundaryCondition 4 loadTimeFunction 1  dofs 1  2            values 1  0.                  set 5
+PiecewiseLinFunction 1 nPoints 2 t 2 0. 10. f(t) 2 0. 1.
+#
+Set 1 nodes
+Set 2 nodes
+Set 3 elements
+Set 4 nodes
+Set 5 nodes
+
+group top_nodes
+nodeprop set 1
+
+group bot_nodes
+nodeprop set 2
+
+group all_3D
+elemprop set 3
+etype[111] LTRSpace
+
+group sides_x_nodes
+nodeprop set 4
+
+group sides_y_nodes
+nodeprop set 5

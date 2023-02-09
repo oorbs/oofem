@@ -80,6 +80,18 @@ DynamicDataReader :: peakNext(const std :: string &keyword)
     return keyword.compare( nextKey ) == 0;
 }
 
+void DynamicDataReader::navigate( int leap )
+{
+    OOFEM_ERROR("Navigate is not implemented in the dynamic data reader")
+    /*for ( int i = 0; i < abs(leap); ++i ) {
+        if ( leap < 0 ) {
+            this->it--;
+        } else {
+            this->it++;
+        }
+    }*/
+}
+
 void
 DynamicDataReader :: finish()
 {

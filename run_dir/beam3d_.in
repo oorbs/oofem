@@ -1,0 +1,57 @@
+beam3d_10elems.out
+Multiple beam3d element test
+StaticStructural nsteps 10 nmodules 0
+#
+domain 3d
+OutputManager tstep_all dofman_all element_all
+ndofman 12 nelem 10 ncrosssect 1 nmat 1 nbc 2 nic 0 nltf 1 nset 3 nxfemman 0
+node 1     coords 3   0      0      100
+node 2     coords 3   10     0      90
+node 3     coords 3  -10     0      80
+node 4     coords 3   10     0      70
+node 5     coords 3  -10     0      60
+node 6     coords 3   10     -5     50
+node 7     coords 3  -10     0      40
+node 8     coords 3   10     0      30
+node 9     coords 3  -10     0      20
+node 10    coords 3   10     0      10
+node 11    coords 3   0      10     0
+node 12    coords 3   0      0      0
+#
+rbsbeam3d 1   nodes 2   1  2  refAngle 0
+beam3d 2   nodes 2   2  3  refAngle 0
+beam3d 3   nodes 2   3  4  refAngle 0
+beam3d 4   nodes 2   4  5  refAngle 0
+beam3d 5   nodes 2   5  6  refAngle 0
+beam3d 6   nodes 2   6  7  refAngle 0
+beam3d 7   nodes 2   7  8  refAngle 0
+beam3d 8   nodes 2   8  9  refAngle 0
+beam3d 9   nodes 2   9  10 refAngle 0
+beam3d 10  nodes 2   10 11 refAngle 0
+#
+# .: Section :.
+SimpleCS 1 area 200 Iy 1.389e5 Iz 1.389e5 Ik 1.e6 beamShearCoeff 1.e18 thick 1 material 1 set 3
+#
+# .: Material :.
+isoLE 1 d 1. E 3.e4 n 0.2 tAlpha 1.2e-5
+#
+# .: Displacement Control BC :.
+BoundaryCondition 1 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0. 0. 1.   0. 0. 1.  set 1
+# .: Support BC :.
+BoundaryCondition 2 loadTimeFunction 1  dofs 6  1 2 3 4 5 6  values 6  0. 0. 0.    0. 0. 0.  set 2
+#
+PiecewiseLinFunction 1 nPoints 2 t 2 0. 100. f(t) 2 0. 1.
+#
+# .: Sets :.
+set 1 nodes 1 1
+Set 2 nodes 1 11
+Set 3 allElements
+
+#%BEGIN_CHECK%
+#REACTION number 1 dof 1
+#REACTION number 1 dof 2
+#REACTION number 1 dof 3
+#REACTION number 1 dof 4
+#REACTION number 1 dof 5
+#REACTION number 1 dof 6
+#%END_CHECK%
