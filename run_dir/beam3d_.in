@@ -1,6 +1,7 @@
 beam3d_10elems.out
 Multiple beam3d element test
-StaticStructural nsteps 10 nmodules 0
+#StaticStructural nsteps 10 nmodules 0
+StaticStructural nsteps 10 nmodules 0 lstype 6 smtype 2
 #
 domain 3d
 OutputManager tstep_all dofman_all element_all

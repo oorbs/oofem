@@ -117,8 +117,9 @@ void RBSConcrete1::initializeFrom(InputRecord &ir)
         {
             double criticalShearStrainE, criticalShearStrainP;
             /// TODO: better to update this for Dr. Nagai's PR effect
+            //this formula depends on normal and shear stiffness, this one assumed same deformation
             double PR_temp       = ( 2 + this->nu ) / ( 2 + 2 * this->nu ); // temporary fix for effect of PR on E_Mac
-            criticalShearStrainE = this->fs / this->G;
+            criticalShearStrainE = this->fs / this->G; // shear coef. is included in fs: tau = 2G.eps => eps = (tau/2)/G
             // alternatively: criticalShearStrainE = 0.5 * this->fc / ( this->shearCoef * this->G );
             // or for Gsc=0.5, Gs=2: criticalShearStrainE = ( 1. + nu ) / 2. * ( fc / E );
             criticalShearStrainP = ( this->criticalStrain - this->fc / ( this->E * PR_temp ) );
@@ -134,7 +135,7 @@ void RBSConcrete1::initializeFrom(InputRecord &ir)
                 criticalStrain );
             Gth1 = 0.;
         } else {
-            Gth1 = ( fs - maxLinearShearStress ) / dStrain ;
+            Gth1 = ( fs - maxLinearShearStress ) / dStrain; //fs is devided to shear coef. because: tau=2G.eps=>G=(tau/2)/eps,
         }
 
         /// tensile & shear displacement cracks in mm // 0.3 0.15 0.3 || 0.05 0.05 0.2
@@ -152,7 +153,7 @@ void RBSConcrete1::initializeFrom(InputRecord &ir)
             0., criticalTensileStrain,                          // strain dependent
             tensile_cmd1 };                                     // crack opening dependent
         this->shearCmdKeyPoints = FloatArray{
-            0., .5 * criticalShearStrain, criticalShearStrain,  // strain dependent
+            0., fs_k(0)/G, criticalShearStrain,                 // strain dependent (unused)
             shear_cmd1, shear_cmd2 };                           // crack slip dependent
         // last two softening stages (Gts1 & Gts2 or only Gts2) should be calculated
         // depending on element length when - instead of strains - the crack mouth
@@ -179,8 +180,14 @@ void RBSConcrete1::initializeFrom(InputRecord &ir)
         epsP_k( i ) = eps_k( i  ) - fs_k( i ) / G_k( 0 );
         if ( eps_k( i ) != eps_k( i ) || epsP_k( i ) != epsP_k( i ) ){
             OOFEM_ERROR("Unable to calculate concrete yield stress due to divide to zero error.")
+        } else if ( ( epsP_k( i ) == epsP_k( i - 1 ) ) ) {
+            OOFEM_WARNING("Material has elastic behavior where expected nonlinear behavior.\n"
+                           "Using realistic mechanical properties may solve this problem.");
         }
         H_k( i - 1 ) = ( fs_k( i ) - fs_k( i - 1 ) ) / ( epsP_k( i ) - epsP_k( i - 1 ) );
+        if ( isinf( H_k( i - 1 ) ) ) {
+            H_k( i - 1 ) = 1.e+16; // INFINITY
+        }
     }
     eps_k( maxNKShear )  = 1.e+16; // INFINITY
     epsP_k( maxNKShear ) = 1.e+16; // INFINITY
@@ -244,6 +251,7 @@ FloatArrayF<6> RBSConcrete1::giveRealStressVector_3d( const FloatArrayF<6> &tota
     }
 
 #if !defined USE_DIAGONAL_STIFFNESS // use elastic isotropic stiffness by ref
+    // can use confined stress same as original RBSM (Kawai 1987)
     const auto &elasticStiffness = D.giveTangent();
 #elif defined MAKE_DIAGONAL_STIFFNESS // make diagonal stiffness matrix
     const FloatMatrixF<6,6> elasticStiffness = {
