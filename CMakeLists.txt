@@ -419,6 +419,8 @@ if (USE_ONEAPI)
             set(oneapiMklDir "${oneapiDir}/mkl/latest")
             set(oneapiMklLibDir "${oneapiMklDir}/lib")
             set(oneapiLibDir "")
+            # incompatibility of macos 13 with oneapi 2023.1 ?
+            # include_directories ("/Library/Developer/CommandLineTools/SDKs/MacOSX12.sdk/usr/include")
         elseif(UNIX)
             # Linux (not tested)
             set(oneapiMklDir "${oneapiDir}/mkl/latest")
