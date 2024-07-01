@@ -10,7 +10,8 @@ set (sm_element
     3D/lspacebb.C
     3D/qspace.C 
     3D/q27space.C
-    3D/ltrspace.C 
+    3D/ltrspace.C
+    3D/rbsmtetra.C
     3D/ltrspaceboundary.C
     3D/ltrspaceboundarytruss.C
     3D/ltrspaceboundarymembrane.C
@@ -30,6 +31,8 @@ set (sm_element
     Beams/libeam2d.C 
     Beams/libeam2dnl.C
     Beams/libeam3d.C 
+    Beams/rbsbeam3d.C
+    Beams/rbsmbeam3d.C
     Beams/libeam3dnl.C 
     Beams/libeam3dnl2.C 
     Beams/libeam3d2.C
