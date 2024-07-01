@@ -148,6 +148,7 @@ set (core_ltf
 set (core_cs
     crosssection.C
     emptycs.C
+    dummycrosssection.C
     )
 
 set (core_td
@@ -157,6 +158,7 @@ set (core_dofman
     dofmanager.C
     node.C
     slavenode.C
+    generalslavenode.C
     hangingnode.C
     qcnode.C
     rigidarmnode.C
@@ -175,6 +177,7 @@ set (core_export
     outputmanager.C
     exportmodule.C
     exportmodulemanager.C
+    exportregion.C
     outputexportmodule.C
     errorcheckingexportmodule.C
     vtkexportmodule.C
@@ -188,6 +191,8 @@ set (core_export
     homexportmodule.C
     matlabexportmodule.C
     gpexportmodule.C
+    solutionstatusexportmodule.C
+    vtkhdf5exportmodule.C
     )
 
 set (core_monitors
@@ -246,6 +251,7 @@ set (core_fei
     fei3dhexatriquad.C
     fei3dwedgelin.C 
     fei3dwedgequad.C
+    fei3dhexaconst.C
     )
 
 set (core_xfem

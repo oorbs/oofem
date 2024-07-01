@@ -136,6 +136,9 @@ int main(int argc, char *argv[])
 
     int rank = 0;
 
+    // print header to redirected output
+    OOFEM_LOG_FORCED(PRG_HEADER_SM);
+
 #ifdef __PARALLEL_MODE
  #ifdef __USE_MPI
     MPI_Init(& argc, & argv);
@@ -283,9 +286,6 @@ int main(int argc, char *argv[])
         oofem_logger.appendErrorTo( errOutputFileName.str() );
     }
 
-    // print header to redirected output
-    OOFEM_LOG_FORCED(PRG_HEADER_SM);
-
     OOFEMTXTDataReader dr( inputFileName.str() );
     auto problem = :: InstanciateProblem(dr, _processor, contextFlag, NULL, parallelFlag);
     dr.finish();
@@ -365,13 +365,9 @@ void oofem_print_help()
     oofem_print_epilog();
 }
 
-#ifndef HOST_TYPE
- #define HOST_TYPE "unknown"
-#endif
-
 void oofem_print_version()
 {
-    printf("\n%s (%s, %s)\nof %s on %s\n", PRG_VERSION, HOST_TYPE, MODULE_LIST, __DATE__, HOST_NAME);
+    printf("\n%s (%s, %s)\nGit RepoURL: %s\n    Branch: %s, Hash: %s\n", PRG_VERSION, HOST_TYPE, MODULE_LIST, OOFEM_GIT_REPOURL, OOFEM_GIT_BRANCH, OOFEM_GIT_HASH);
     oofem_print_epilog();
 }
 
@@ -403,9 +399,15 @@ void oofem_finalize_modules()
 
 //#include "loadbalancer.h"
 //#include "xfem/iga.h"
-
+#include "floatmatrix.h"
+#include "domain.h"
+#include "element.h"
 void oofem_debug(EngngModel &emodel)
 {
+    FloatMatrix k;
+    emodel.giveDomain(1)->giveElement(1)->giveCharacteristicMatrix(k, ConductivityMatrix, NULL);
+    emodel.giveDomain(1)->giveElement(1)->giveCharacteristicMatrix(k, CapacityMatrix, NULL);
+
     //FloatMatrix k;
     //((BsplinePlaneStressElement*)emodel.giveDomain(1)->giveElement(1))->giveCharacteristicMatrix(k, StiffnessMatrix, NULL);
 

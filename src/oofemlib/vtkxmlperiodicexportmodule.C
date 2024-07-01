@@ -99,7 +99,7 @@ VTKXMLPeriodicExportModule :: giveSwitches(IntArray &answer, int location) {
 
 
 void
-VTKXMLPeriodicExportModule :: setupVTKPiece(VTKPiece &vtkPiece, TimeStep *tStep, Set& region)
+VTKXMLPeriodicExportModule :: setupVTKPiece(ExportRegion &vtkPiece, TimeStep *tStep, Set& region)
 {
     // Stores all neccessary data (of a region) in a VTKPiece so it can be exported later.
 
@@ -224,7 +224,7 @@ VTKXMLPeriodicExportModule :: setupVTKPiece(VTKPiece &vtkPiece, TimeStep *tStep,
 }
 
 int
-VTKXMLPeriodicExportModule :: initRegionNodeNumbering(VTKPiece& vtkPiece,
+VTKXMLPeriodicExportModule :: initRegionNodeNumbering(ExportRegion& vtkPiece,
                                                       Domain *domain, TimeStep *tStep, Set& region)
 {
     int nnodes = domain->giveNumberOfDofManagers();
@@ -422,14 +422,13 @@ VTKXMLPeriodicExportModule :: initRegionNodeNumbering(VTKPiece& vtkPiece,
         }
     }
 
-
-    vtkPiece.setNumberOfNodes(regionDofMans);   
-    vtkPiece.setNumberOfCells(regionSingleCells);
- 
     uniqueNodeTable.resizeWithData(nnodes + uniqueNodes, 3);
     regionDofMans = nnodes + uniqueNodes;
     regionG2LNodalNumbers.resizeWithValues(regionDofMans);
     regionL2GNodalNumbers.resize(regionDofMans);
+
+    vtkPiece.setNumberOfNodes(regionDofMans);
+    vtkPiece.setNumberOfCells(regionSingleCells);
 
     for ( int i = 1; i <= regionDofMans; i++ ) {
         if ( regionG2LNodalNumbers.at(i) ) {
@@ -441,7 +440,7 @@ VTKXMLPeriodicExportModule :: initRegionNodeNumbering(VTKPiece& vtkPiece,
 }
 
 
-void VTKXMLPeriodicExportModule :: exportPrimaryVars(VTKPiece &vtkPiece, Set& region, IntArray& primaryVarsToExport, NodalRecoveryModel& smoother, TimeStep *tStep) 
+void VTKXMLPeriodicExportModule :: exportPrimaryVars(ExportRegion &vtkPiece, Set& region, IntArray& primaryVarsToExport, NodalRecoveryModel& smoother, TimeStep *tStep) 
 {
     Domain *d = emodel->giveDomain(1);
     int nnodes = d->giveNumberOfDofManagers();
@@ -564,7 +563,7 @@ void VTKXMLPeriodicExportModule :: exportPrimaryVars(VTKPiece &vtkPiece, Set& re
 }
 
 void 
-VTKXMLPeriodicExportModule :: exportIntVars(VTKPiece &vtkPiece, Set& region, IntArray& internalVarsToExport, NodalRecoveryModel& smoother, TimeStep *tStep)
+VTKXMLPeriodicExportModule :: exportIntVars(ExportRegion &vtkPiece, Set& region, IntArray& internalVarsToExport, NodalRecoveryModel& smoother, TimeStep *tStep)
 {
     Domain *d = emodel->giveDomain(1);
     int nnodes = d->giveNumberOfDofManagers();

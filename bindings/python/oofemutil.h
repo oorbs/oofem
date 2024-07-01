@@ -237,7 +237,11 @@ py::object truss1d(py::args args, py::kwargs &kw) { return createElementOfType("
 py::object trPlaneStress2d(py::args args, py::kwargs &kw) { return createElementOfType("trplanestress2d",args,kw); }
 py::object planeStress2d(py::args args, py::kwargs &kw) { return createElementOfType("planestress2d",args,kw); }
 py::object qBrick1ht(py::args args, py::kwargs &kw) { return createElementOfType("qbrick1ht",args,kw); }
+py::object quadAxiSym1ht(py::args args, py::kwargs &kw) { return createElementOfType("quadaxisym1ht",args,kw); }
 py::object lspace(py::args args, py::kwargs &kw) { return createElementOfType("lspace",args,kw); }
+py::object tr1ht(py::args args, py::kwargs &kw) { return createElementOfType("tr1ht",args,kw); }
+py::object quad1ht(py::args args, py::kwargs &kw) { return createElementOfType("quad1ht",args,kw); }
+py::object qquad1ht(py::args args, py::kwargs &kw) { return createElementOfType("qquad1ht",args,kw); }
 
 
 
@@ -283,6 +287,7 @@ py::object nodalLoad(py::args args, py::kwargs kw) { return createGeneralBoundar
 py::object structTemperatureLoad(py::args args, py::kwargs kw) { return createGeneralBoundaryConditionOfType("structtemperatureload",args,kw); }
 py::object structEigenstrainLoad(py::args args, py::kwargs kw) { return createGeneralBoundaryConditionOfType("structEigenstrainLoad",args,kw); }
 py::object constantSurfaceLoad(py::args args, py::kwargs kw) { return createGeneralBoundaryConditionOfType("constantsurfaceload",args,kw); }
+py::object deadWeight(py::args args, py::kwargs kw) { return createGeneralBoundaryConditionOfType("DeadWeight",args,kw); }
 
 
 /*****************************************************
