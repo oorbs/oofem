@@ -65,6 +65,8 @@ set (sm_material
     winklermodel.C
     structmatsettable.C
     tutorialmaterial.C
+    DiscreteModels/rbsconcrete1.C
+    DiscreteModels/rbsitz.C
     graddamagematerialextensioninterface.C    
     rcm2.C
     isodamagemodel.C
