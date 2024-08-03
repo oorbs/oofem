@@ -205,7 +205,8 @@ StaggeredProblem :: initializeFrom(InputRecord &ir)
             throw ValueInputException(ir, "None", "can't open output file: " + this->dataOutputFileName);
         }
 
-        fprintf(outputStream, "%s", PRG_HEADER);
+        // Temporary fix (Todo: uncomment following line)
+        //fprintf(outputStream, "%s", PRG_HEADER);
         fprintf(outputStream, "\nStarting analysis on: %s\n", ctime(& this->startTime) );
         fprintf(outputStream, "%s\n", simulationDescription.c_str());
 
@@ -459,10 +460,12 @@ StaggeredProblem :: solveYourself()
             this->initializeYourself( sp->giveCurrentStep() );
             this->solveYourselfAt( sp->giveCurrentStep() );
             this->updateYourself( sp->giveCurrentStep() );
-            this->terminate( sp->giveCurrentStep() );
-
             this->timer.stopTimer(EngngModelTimer :: EMTT_SolutionStepTimer);
             double _steptime = this->timer.getUtime(EngngModelTimer :: EMTT_SolutionStepTimer);
+            sp->giveCurrentStep()->solutionTime = _steptime;
+            
+            this->terminate( sp->giveCurrentStep() );
+
             OOFEM_LOG_INFO("EngngModel info: user time consumed by solution step %d: %.2fs\n",
                            sp->giveCurrentStep()->giveNumber(), _steptime);
 

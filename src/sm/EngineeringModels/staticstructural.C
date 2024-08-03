@@ -53,6 +53,7 @@
 #include "datastream.h"
 #include "contextioerr.h"
 #include "classfactory.h"
+#include "assemblercallback.h"
 
 #ifdef __PARALLEL_MODE
  #include "problemcomm.h"
@@ -342,7 +343,7 @@ void StaticStructural :: solveYourselfAt(TimeStep *tStep)
     }
 
     int currentIterations;
-    NM_Status status;
+    ConvergedReason status;
     if ( this->nMethod->referenceLoad() ) {
         status = this->nMethod->solve(*this->stiffnessMatrix,
                                       referenceForces,
@@ -368,9 +369,11 @@ void StaticStructural :: solveYourselfAt(TimeStep *tStep)
                                             currentIterations,
                                             tStep);
     }
-    if ( !( status & NM_Success ) ) {
+    if (status != CR_CONVERGED) {
       OOFEM_WARNING("No success in solving problem at step %d", tStep->giveNumber());
     }
+    tStep->numberOfIterations = currentIterations;
+    tStep->convergedReason = status;
 }
 
 void StaticStructural :: terminate(TimeStep *tStep)
@@ -447,6 +450,24 @@ void StaticStructural :: updateComponent(TimeStep *tStep, NumericalCmpn cmpn, Do
         OOFEM_ERROR("Unknown component");
     }
 }
+
+
+void
+StaticStructural :: computeExternalLoadReactionContribution(FloatArray &reactions, TimeStep *tStep, int di)
+{
+    if ( ( di == 1 ) && ( tStep == this->giveCurrentStep() ) ) {
+      reactions.resize( this->giveNumberOfDomainEquations( di, EModelDefaultPrescribedEquationNumbering() ) );
+      reactions.zero();
+      this->assembleVector( reactions, tStep, ReferenceForceAssembler(), VM_Total,
+                            EModelDefaultPrescribedEquationNumbering(), this->giveDomain(di) );
+      reactions.times(loadLevel);
+      this->assembleVector( reactions, tStep, ExternalForceAssembler(), VM_Total,
+                            EModelDefaultPrescribedEquationNumbering(), this->giveDomain(di) );
+    } else {
+      OOFEM_ERROR("unable to respond due to invalid solution step or domain");
+    }
+}
+
 
 
 void StaticStructural :: saveContext(DataStream &stream, ContextMode mode)

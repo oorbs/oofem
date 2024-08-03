@@ -36,6 +36,8 @@
 #define libeam3dnl_h
 
 #include "sm/Elements/nlstructuralelement.h"
+#include "nodalaveragingrecoverymodel.h"
+
 
 ///@name Input fields for LIBeam3dNL
 //@{
@@ -51,7 +53,7 @@ namespace oofem {
  * Based on Element due to Simo and Vu-Quoc, description taken from
  * Crisfield monograph.
  */
-class LIBeam3dNL : public NLStructuralElement
+class LIBeam3dNL : public NLStructuralElement, public NodalAveragingRecoveryModelInterface
 {
 private:
     /// Initial length.
@@ -68,7 +70,7 @@ private:
     int referenceNode;
 
 public:
-    LIBeam3dNL(int n, Domain * d);
+    LIBeam3dNL(int n, Domain *d);
     virtual ~LIBeam3dNL() { }
 
     void computeLumpedMassMatrix(FloatMatrix &answer, TimeStep *tStep) override;
@@ -86,6 +88,7 @@ public:
 
     void computeStressVector(FloatArray &answer, const FloatArray &strain, GaussPoint *gp, TimeStep *tStep) override;
     void computeConstitutiveMatrixAt(FloatMatrix &answer, MatResponseMode rMode, GaussPoint *gp, TimeStep *tStep) override;
+    void computeConstitutiveMatrix_dPdF_At(FloatMatrix &answer, MatResponseMode rMode, GaussPoint *gp, TimeStep *tStep) override;
 
     // definition & identification
     const char *giveInputRecordName() const override { return _IFT_LIBeam3dNL_Name; }
@@ -93,6 +96,9 @@ public:
     void initializeFrom(InputRecord &ir) override;
     Element_Geometry_Type giveGeometryType() const override { return EGT_line_1; }
 
+    void NodalAveragingRecoveryMI_computeNodalValue(FloatArray &answer, int node, InternalStateType type, TimeStep *tStep) override;
+    Interface *giveInterface(InterfaceType it) override;
+    
 #ifdef __OOFEG
     void drawRawGeometry(oofegGraphicContext &gc, TimeStep *tStep) override;
     void drawDeformedGeometry(oofegGraphicContext &gc, TimeStep *tStep, UnknownType) override;

@@ -2,7 +2,7 @@
 Mesoscopic [Nonuni-prism] Test (V30 0-sieve Wall-Gap:1mm Aggregate-Gap:5mm)
 # .: Control file :.
 # After generation of input file:
-# 1. replace ltrspace with RbsMTetra
+# 1. for 3D RBSM elements, replace ltrspace with RbsMTetra
 # 2. For mesoscopic models provide ITZ, e.g., RbsMTetra 22523  itz 4   nodes 4 ...
 # 3. replace BC sets with Polyset #   minAssociations 3   rtetcellsofnodes
 # 4. Copy polyset postprocess output between #%BEGIN_CHECK% #%END_CHECK%

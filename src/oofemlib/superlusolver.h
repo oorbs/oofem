@@ -37,10 +37,12 @@
 
 #include "sparselinsystemnm.h"
 #include "sparsemtrx.h"
+#include "convergedreason.h"
 #include "floatarray.h"
 #include "SUPERLU_MT/include/slu_mt_ddefs.h"
 
 #define _IFT_SuperLUSolver_Name "superlu"
+#define _IFT_SuperLUSolver_Permcspec "permcspec"
 
 namespace oofem {
 class Domain;
@@ -57,7 +59,14 @@ class FloatMatrix;
 class OOFEM_EXPORT SuperLUSolver : public SparseLinearSystemNM
 {
 private:
-
+    SparseMtrx::SparseMtrxVersionType lhsVersion; // timestamp of existing decomposition
+    SuperMatrix A, L, U;
+    bool AAllocated=false, LAllocated=false, UAllocated=false;
+    bool permAllocated = false;
+    int_t *perm_c;
+    int_t *perm_r;
+    int_t permc_spec;
+    
 public:
     SuperLUSolver(Domain * d, EngngModel * m);
     /// Destructor
@@ -69,7 +78,7 @@ public:
      * @param x Solution array.
      * @return Status value.
      */
-    NM_Status solve(SparseMtrx &A, FloatArray &b, FloatArray &x) override;
+    ConvergedReason solve(SparseMtrx &A, FloatArray &b, FloatArray &x) override;
     SparseMtrxType giveRecommendedMatrix(bool symmetric) const override { return SMT_CompCol; }
 
 

@@ -313,7 +313,8 @@ EngngModel :: initializeFrom(InputRecord &ir)
             OOFEM_ERROR("Can't open output file %s", this->dataOutputFileName.c_str());
         }
 
-        fprintf(outputStream, "%s", PRG_HEADER);
+        // Temporary fix (Todo: uncomment following line)
+        //fprintf(outputStream, "%s", PRG_HEADER);
         fprintf(outputStream, "\nStarting analysis on: %s\n", ctime(& this->startTime) );
         fprintf(outputStream, "%s\n", simulationDescription.c_str());
 
@@ -525,10 +526,12 @@ EngngModel :: solveYourself()
             this->updateYourself( this->giveCurrentStep() );
 
             this->timer.stopTimer(EngngModelTimer :: EMTT_SolutionStepTimer);
-
+            double _steptime = this->giveSolutionStepTime();
+            this->giveCurrentStep()->solutionTime = _steptime;
+            
             this->terminate( this->giveCurrentStep() );
 
-            double _steptime = this->giveSolutionStepTime();
+
             OOFEM_LOG_INFO("EngngModel info: user time consumed by solution step %d: %.2fs\n",
                            this->giveCurrentStep()->giveNumber(), _steptime);
 
@@ -893,7 +896,7 @@ void EngngModel :: assemble(SparseMtrx &answer, TimeStep *tStep, const MatrixAss
 
                     if ( mat.isNotEmpty() ) {
                         bNodes = element->giveInterpolation()->boundaryGiveNodes(boundary);
-                        if ( element->computeDofTransformationMatrix(R, bNodes, false) ) {
+                        if ( element->computeDofTransformationMatrix(R, bNodes, true) ) {
                             mat.rotatedWith(R);
                         }
 
@@ -918,7 +921,7 @@ void EngngModel :: assemble(SparseMtrx &answer, TimeStep *tStep, const MatrixAss
 
                     if ( mat.isNotEmpty() ) {
                         bNodes = element->giveInterpolation()->boundaryEdgeGiveNodes(boundary);
-                        if ( element->computeDofTransformationMatrix(R, bNodes, false) ) {
+                        if ( element->computeDofTransformationMatrix(R, bNodes, true) ) {
                             mat.rotatedWith(R);
                         }
 
@@ -1181,7 +1184,7 @@ void EngngModel :: assembleVectorFromBC(FloatArray &answer, TimeStep *tStep,
                         if ( charVec.isNotEmpty() ) {
                             //element->giveInterpolation()->boundaryGiveNodes(bNodes, boundary);
                             auto bNodes = element->giveBoundarySurfaceNodes(boundary);
-                            if ( element->computeDofTransformationMatrix(R, bNodes, false) ) {
+                            if ( element->computeDofTransformationMatrix(R, bNodes, true) ) {
                                 charVec.rotatedWith(R, 't');
                             }
 
@@ -1212,7 +1215,7 @@ void EngngModel :: assembleVectorFromBC(FloatArray &answer, TimeStep *tStep,
                         if ( charVec.isNotEmpty() ) {
                             //element->giveInterpolation()->boundaryEdgeGiveNodes(bNodes, boundary);
                             auto bNodes = element->giveBoundaryEdgeNodes(boundary);
-                            if ( element->computeDofTransformationMatrix(R, bNodes, false) ) {
+                            if ( element->computeDofTransformationMatrix(R, bNodes, true) ) {
                                 charVec.rotatedWith(R, 't');
                             }
 
@@ -1408,7 +1411,7 @@ void EngngModel :: assembleVectorFromElements(FloatArray &answer, TimeStep *tSte
                 if ( charVec.isNotEmpty() ) {
                     //element->giveInterpolation()->boundaryEdgeGiveNodes(bNodes, boundary);
                     bNodes = element->giveBoundaryEdgeNodes(boundary);
-                    if ( element->computeDofTransformationMatrix(R, bNodes, false) ) {
+                    if ( element->computeDofTransformationMatrix(R, bNodes, true) ) {
                         charVec.rotatedWith(R, 't');
                     }
                     assembleFlag = true;
@@ -1420,7 +1423,7 @@ void EngngModel :: assembleVectorFromElements(FloatArray &answer, TimeStep *tSte
                 if ( charVec.isNotEmpty() ) {
                     //element->giveInterpolation()->boundaryGiveNodes(bNodes, boundary);
                     bNodes = element->giveBoundarySurfaceNodes(boundary);
-                    if ( element->computeDofTransformationMatrix(R, bNodes, false) ) {
+                    if ( element->computeDofTransformationMatrix(R, bNodes, true) ) {
                         charVec.rotatedWith(R, 't');
                     }
                     assembleFlag = true;
