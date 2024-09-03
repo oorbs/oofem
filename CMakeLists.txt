@@ -235,12 +235,18 @@ if (USE_DSS)
 endif ()
 
 if (USE_OPENMP_PARALLEL)
+    message(STATUS "Seeking OpenMP libraries...")
     include (FindOpenMP)
     if (OPENMP_FOUND)
+        message(STATUS "    OpenMP libraries successfully found...")
         set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
         set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
         list (APPEND MODULE_LIST "openmp")
+        # this is needed for Apple's Clang compiler:
+        list (APPEND EXT_LIBS OpenMP::OpenMP_CXX)
+    else()
+        message (FATAL_ERROR "OpenML library not found (required for multithreading)")
     endif ()
 endif ()
 
@@ -444,7 +450,7 @@ if (USE_ONEAPI)
             set(oneapiLibDir
                     "${oneapiDir}/compiler/latest/windows/compiler/lib/intel64")
         elseif(APPLE)
-            # MacOS
+            # Only for MacOS 12.x with Intel CPU (Apple support for Intel compilers stoped with M1 ~ M4 chips)
             set(oneapiMklDir "${oneapiDir}/mkl/latest")
             set(oneapiMklLibDir "${oneapiMklDir}/lib")
             set(oneapiLibDir "")

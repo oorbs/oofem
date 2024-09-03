@@ -111,6 +111,17 @@ OOFEMTXTDataReader :: peakNext(const std :: string &keyword)
     return keyword.compare( nextKey ) == 0;
 }
 
+void OOFEMTXTDataReader::navigate( int leap )
+{
+    for ( int i = 0; i < abs(leap); ++i ) {
+        if ( leap < 0 ) {
+            this->it--;
+        } else {
+            this->it++;
+        }
+    }
+}
+
 void
 OOFEMTXTDataReader :: finish()
 {

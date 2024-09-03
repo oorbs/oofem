@@ -11,6 +11,7 @@ set (core_unsorted
     geotoolbox.C geometry.C
     datastream.C
     set.C
+    polyset.C
     weakperiodicbc.C
     solutionbasedshapefunction.C
     fracturemanager.C

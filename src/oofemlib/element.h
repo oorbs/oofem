@@ -657,7 +657,7 @@ public:
      */
     void setMaterial(int matIndx) { this->material = matIndx; }
         
-	/**
+    /**
      * Sets the cross section model of receiver.
      * @param csIndx Index of new cross section.
      */

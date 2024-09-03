@@ -1340,4 +1340,12 @@ Beam3d :: giveCompositeExportData(std :: vector< ExportRegion > &vtkPieces, IntA
         }
     }
 }
+
+// Saeid:
+// <temporary: testing effect of nip on convergence rate>
+void Beam3d::setNumberOfGaussPoints( int nip )
+{
+    numberOfGaussPoints = nip;
+}
 } // end namespace oofem
+// <temporary/>

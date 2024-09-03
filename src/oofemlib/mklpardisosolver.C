@@ -156,7 +156,7 @@ ConvergedReason MKLPardisoSolver :: solve(SparseMtrx &A, FloatArray &b, FloatArr
         (void*)a, (int*)ia, (int*)ja,
         &idum, &nrhs, iparm.givePointer(), &msglvl, (void*)b.givePointer(), (void*)x.givePointer(), &error);
 
-    printf("iparm(20) = %d\n", iparm[20]);
+    if ( iparm( 20 ) ) printf("iparm(20) = %d\n", iparm[20]);
     if ( error != 0 ) {
         OOFEM_WARNING("ERROR during solution: %d, iparm(20) = %d", error, iparm[20-1]);
         return CR_FAILED;

@@ -83,7 +83,10 @@ enum InterfaceType {
 
     QCMaterialExtensionInterfaceType,
 
-    MixedPressureMaterialExtensionInterfaceType
+    MixedPressureMaterialExtensionInterfaceType,
+
+    // enables elements to wield interfacial transition zone material
+    ItzInterfaceType
 };
 } // end namespace oofem
 #endif // interfacetype_h

@@ -193,7 +193,6 @@ std::unique_ptr<NodalRecoveryModel> ClassFactory :: createNodalRecoveryModel(Nod
     return cf_create4<NodalRecoveryModel>(nodalRecoveryModelList, name, domain);
 }
 
-
 std::unique_ptr<Element> ClassFactory :: createElement(const char *name, int number, Domain *domain)
 {
     return cf_create<Element>(elemList, name,number, domain);
@@ -212,6 +211,16 @@ std::unique_ptr<DofManager> ClassFactory :: createDofManager(const char *name, i
 bool ClassFactory :: registerDofManager( const char *name, std::unique_ptr<DofManager> ( *creator )( int, Domain * ) )
 {
     return cf_store(dofmanList, name, creator);
+}
+
+std::unique_ptr<Set> ClassFactory :: createSet(const char *name, int number, Domain *domain)
+{
+    return cf_create<Set>(setList, name,number, domain);
+}
+
+bool ClassFactory :: registerSet( const char *name, std::unique_ptr<Set> ( *creator )( int, Domain * ) )
+{
+    return cf_store(setList, name, creator);
 }
 
 std::unique_ptr<GeneralBoundaryCondition> ClassFactory :: createBoundaryCondition(const char *name, int number, Domain *domain)

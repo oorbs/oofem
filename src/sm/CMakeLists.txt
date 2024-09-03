@@ -12,6 +12,7 @@ set (sm_crosssection
     CrossSections/simplecrosssection.C
     CrossSections/layeredcrosssection.C
     CrossSections/fiberedcs.C
+    CrossSections/rbsfiberedcs.C
     CrossSections/structuralinterfacecrosssection.C
     CrossSections/variablecrosssection.C
     CrossSections/warpingcrosssection.C

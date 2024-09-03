@@ -66,6 +66,7 @@ public:
 
     InputRecord &giveInputRecord(InputRecordType, int recordId) override;
     bool peakNext(const std :: string &keyword) override;
+    void navigate(int leap) override;
     void finish() override;
     std :: string giveReferenceName() const override { return dataSourceName; }
 
