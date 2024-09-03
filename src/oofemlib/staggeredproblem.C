@@ -33,6 +33,7 @@
  */
 
 #include "staggeredproblem.h"
+#include "oofemcfg.h"
 #include "engngm.h"
 #include "timestep.h"
 #include "function.h"
@@ -210,7 +211,7 @@ StaggeredProblem :: initializeFrom(InputRecord &ir)
         fprintf(outputStream, "\nStarting analysis on: %s\n", ctime(& this->startTime) );
         fprintf(outputStream, "%s\n", simulationDescription.c_str());
 
-#ifdef __PARALLEL_MODE
+#ifdef __MPI_PARALLEL_MODE
         if ( this->isParallel() ) {
             fprintf(outputStream, "Problem rank is %d/%d on %s\n\n", this->rank, this->numProcs, this->processor_name);
         }
@@ -327,7 +328,6 @@ StaggeredProblem :: giveDiscreteTime(int iStep)
     }
 
     OOFEM_ERROR("invalid iStep");
-    return 0.0;
 }
 
 TimeStep *
@@ -474,7 +474,7 @@ StaggeredProblem :: solveYourself()
                         sp->giveCurrentStep()->giveNumber(), _steptime);
             }
 
-#ifdef __PARALLEL_MODE
+#ifdef __MPI_PARALLEL_MODE
             if ( loadBalancingFlag ) {
                 this->balanceLoad( sp->giveCurrentStep() );
             }
@@ -582,7 +582,7 @@ StaggeredProblem :: giveSlaveProblem(int i)
         OOFEM_ERROR("Undefined problem");
     }
 
-    return NULL;
+    // return NULL;
 }
 
 
