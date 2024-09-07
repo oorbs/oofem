@@ -71,7 +71,7 @@ void RBSConcrete1::initializeFrom(InputRecord &ir)
         OOFEM_ERROR( "f'c = %d value is not valid (use positive value", this->fc );
     }
 
-    this->linearStressRatio = .50;
+    this->linearStressRatio = .50; // R1 (or A1)
     this->shearCoef         = 2.; // shear coef. 1:3
     this->criticalStrain    = 0.002; // 0.002~0.003
 

@@ -166,8 +166,8 @@ public:
 
     // definition & identification
     const char *giveInputRecordName() const override { return _IFT_RBSMTetra_Name; }
-
     const char *giveClassName() const override { return "RBSMTetra"; }
+    Element_Geometry_Type giveGeometryType() const override {return EGT_tetra_1;}
 
 /*
 #ifdef __OOFEG
