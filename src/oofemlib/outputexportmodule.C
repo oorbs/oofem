@@ -63,8 +63,7 @@ OutputExportModule :: initializeFrom(InputRecord &ir)
 
     auto *file = giveOutputStream();
 
-    // Temporary fix (Todo: uncomment following line)
-    //fprintf(file, "%s", PRG_HEADER);
+    fprintf(file, "%s", PRG_HEADER);
     fprintf(file, "\nStarting analysis on: %s\n", ctime(& emodel->giveStartTime()) );
     fprintf(file, "%s\n", emodel->giveDescription().c_str());
 }
